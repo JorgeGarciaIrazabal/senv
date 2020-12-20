@@ -1,1 +1,1 @@
-# pysenv
+# pysenv (Python Super Environment)
