@@ -100,29 +100,6 @@ toml = "*"
 
 [[package]]
 category = "main"
-description = "Install and run applications packaged with conda in isolated environments"
-name = "condax"
-optional = false
-python-versions = ">=3.6"
-version = "0.0.5"
-
-[package.dependencies]
-PyYAML = "*"
-click = "*"
-requests = "*"
-userpath = "*"
-
-[[package]]
-category = "main"
-description = "Distro - an OS platform information API"
-marker = "platform_system == \"Linux\""
-name = "distro"
-optional = false
-python-versions = "*"
-version = "1.5.0"
-
-[[package]]
-category = "main"
 description = "Lightweight bootstrapper for a conda executable"
 name = "ensureconda"
 optional = false
@@ -418,18 +395,6 @@ secure = ["pyOpenSSL (>=0.14)", "cryptography (>=1.3.4)", "idna (>=2.0.0)", "cer
 socks = ["PySocks (>=1.5.6,<1.5.7 || >1.5.7,<2.0)"]
 
 [[package]]
-category = "main"
-description = "Cross-platform tool for adding locations to the user PATH, no elevated privileges required!"
-name = "userpath"
-optional = false
-python-versions = "*"
-version = "1.4.1"
-
-[package.dependencies]
-click = "*"
-distro = "*"
-
-[[package]]
 category = "dev"
 description = "Backport of pathlib-compatible object wrapper for zip files"
 marker = "python_version < \"3.8\""
@@ -443,7 +408,7 @@ docs = ["sphinx", "jaraco.packaging (>=3.2)", "rst.linker (>=1.9)"]
 testing = ["pytest (>=3.5,<3.7.3 || >3.7.3)", "pytest-checkdocs (>=1.2.3)", "pytest-flake8", "pytest-cov", "jaraco.test (>=3.2.0)", "jaraco.itertools", "func-timeout", "pytest-black (>=0.3.7)", "pytest-mypy"]
 
 [metadata]
-content-hash = "6a30847b9e20e4249b78585ad5045612f8ea832596023b3268715528f9dbb593"
+content-hash = "01d6f3fb5f048f3c46ffd35dc9aacdbed81e4321c558ff5496c510b89764eff1"
 lock-version = "1.0"
 python-versions = "^3.7.0"
 
@@ -486,13 +451,6 @@ colorama = [
 conda-lock = [
     {file = "conda_lock-0.7.3-py3-none-any.whl", hash = "sha256:c8e78d5b94fe5e94bbb499cd7f3490cdce934e78af5f09fdfb8f6b6266c4132d"},
     {file = "conda_lock-0.7.3.tar.gz", hash = "sha256:dc06cbb91519557f0e81a39c58b2bcc4f3e8dd2622ee4ba05fd95182229089d8"},
-]
-condax = [
-    {file = "condax-0.0.5.tar.gz", hash = "sha256:2d46073a0a2ae85d12769987bbf9fd0d81ab2dce9788c69924760b5f953f4e9c"},
-]
-distro = [
-    {file = "distro-1.5.0-py2.py3-none-any.whl", hash = "sha256:df74eed763e18d10d0da624258524ae80486432cd17392d9c3d96f5e83cd2799"},
-    {file = "distro-1.5.0.tar.gz", hash = "sha256:0e58756ae38fbd8fc3020d54badb8eae17c5b9dcbed388b17bb55b8a5928df92"},
 ]
 ensureconda = [
     {file = "ensureconda-1.4.0-py3-none-any.whl", hash = "sha256:2a82becaf09a59b164609373b9243fe02890272142a10fda90b936c2889b79d0"},
@@ -633,10 +591,6 @@ typing-extensions = [
 urllib3 = [
     {file = "urllib3-1.26.2-py2.py3-none-any.whl", hash = "sha256:d8ff90d979214d7b4f8ce956e80f4028fc6860e4431f731ea4a8c08f23f99473"},
     {file = "urllib3-1.26.2.tar.gz", hash = "sha256:19188f96923873c92ccb987120ec4acaa12f0461fa9ce5d3d0772bc965a39e08"},
-]
-userpath = [
-    {file = "userpath-1.4.1-py2.py3-none-any.whl", hash = "sha256:801bbfed9c9de8bf33e615a2017031280bd5c85436d27a061801c594bbe99f63"},
-    {file = "userpath-1.4.1.tar.gz", hash = "sha256:211544ea02d8715fdc06f429cf66cd18c9877a31751d966d6de11b24faaed255"},
 ]
 zipp = [
     {file = "zipp-3.4.0-py3-none-any.whl", hash = "sha256:102c24ef8f171fd729d46599845e95c7ab894a4cf45f5de11a44cc7444fb1108"},

@@ -7,7 +7,6 @@ authors = ["Jorge <jorge.girazabal@gmail.com>"]
 [tool.poetry.dependencies]
 python = "^3.7.0"
 ensureconda = "^1.4.0"
-condax = "^0.0.5"
 click = "^7.1.2"
 tomlkit = "^0.7.0"
 appdirs = "^1.4.4"
@@ -21,3 +20,11 @@ pytest-mock = "^3.4.0"
 [build-system]
 requires = ["poetry>=0.12"]
 build-backend = "poetry.masonry.api"
+
+
+[tool.pysenv]
+env-name = "pysenv_test_name"
+conda-channels = [
+    "conda-forge",
+    "defaults"
+]

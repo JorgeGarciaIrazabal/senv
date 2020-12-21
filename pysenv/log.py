@@ -1,6 +1,5 @@
 import logging
 
 
-logging.basicConfig(format='%(asctime)s-%(levelname)s-%(message)s', level=logging.INFO)
-logging.warning('This is a Warning')
+logging.basicConfig(format='%(message)s', level=logging.INFO)
 log = logging.getLogger(__name__)

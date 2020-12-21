@@ -4,3 +4,7 @@ class PysenvError(Exception):
 
 class PysenvInvalidPythonVersion(PysenvError):
     pass
+
+
+class PysenvNotSupportedPlatform(PysenvError):
+    pass

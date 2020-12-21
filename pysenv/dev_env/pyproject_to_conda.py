@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 
-import tomlkit
 import jinja2
 from pathlib import Path
 import re
 from typing import Dict, Optional
 
+import toml
 import yaml
 from conda_lock.common import get_in
 from conda_lock.src_parser.pyproject_toml import parse_poetry_pyproject_toml
@@ -37,7 +37,9 @@ requirements:
 {%- endfor %}
 
 about:
-  home: {{ home_url|default('https://git.the.flatiron.com/data-platforms') }}
+{% if home_url != '__NONE__' %}
+  home: {{ home_url }}
+{% endif %}
   license: INTERNAL
 """
 
@@ -98,7 +100,9 @@ def pyproject_to_recipe_dict(
     tool_poetry_dict = data["tool"]["poetry"]
     package_name = tool_poetry_dict["name"]
     version = tool_poetry_dict["version"]
-    dependencies = _get_dependencies_from_pyproject(pyproject_path, False)
+    dependencies = _get_dependencies_from_pyproject(
+        pyproject_path, include_dev_dependencies=False
+    )
     python_version = _populate_python_version(python_version, dependencies)
     output = jinja2.Template(template).render(
         name=package_name,
@@ -106,22 +110,23 @@ def pyproject_to_recipe_dict(
         run_deps=dependencies,
         src_path=str(pyproject_path.parent.resolve()),
         python_version=python_version,
-        home_url=tool_poetry_dict.get("homepage"),
+        home_url=tool_poetry_dict.get("homepage", "__NONE__"),
     )
     return yaml.safe_load(output)
 
 
-def pyproject_to_env_dict(
-    pyproject_path: Path
-) -> Dict:
-    data = tomlkit.loads(pyproject_path.read_text())
+def pyproject_to_conda_dev_env_dict(pyproject_path: Path) -> Dict:
+    data = toml.loads(pyproject_path.read_text())
     tool_poetry_dict = data["tool"]["poetry"]
-    channels = get_in(["tool", "conda-lock", "channels"], data, [])
-    package_name = tool_poetry_dict["name"]
-    dependencies = _get_dependencies_from_pyproject(pyproject_path, True)
-
-    return dict(
-        name=package_name,
-        channels=channels,
-        dependencies=dependencies
+    tool_pysenv_dict = data["tool"].get("pysenv", {})
+    channels = get_in(
+        ["tool", "conda-lock", "channels"],
+        data,
+        get_in(["tool", "pysenv", "conda-channels"], data, []),
     )
+    package_name = tool_pysenv_dict.get("env-name", tool_poetry_dict["name"])
+    dependencies = _get_dependencies_from_pyproject(
+        pyproject_path, include_dev_dependencies=True
+    )
+
+    return dict(name=package_name, channels=channels, dependencies=dependencies)
