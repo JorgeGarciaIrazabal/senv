@@ -115,7 +115,7 @@ class Config(BaseModel):
 
     @property
     def python_version(self):
-        return self.dependencies.get("python" ,None)
+        return self.dependencies.get("python", None)
 
     def venv_name(self):
         return self.pysenv.venv.name or self.package_name
