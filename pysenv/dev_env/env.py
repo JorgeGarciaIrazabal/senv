@@ -1,65 +1,32 @@
-import os
-import subprocess
-from enum import Enum, auto
 from pathlib import Path
 from sys import platform
 from tempfile import NamedTemporaryFile
+from typing import List
 
 import click
-import toml
+import typer
 import yaml
-from click import BadParameter
 from conda_lock.conda_lock import DEFAULT_PLATFORMS, do_conda_install, run_lock
-from ensureconda import ensureconda
 
-from .pyproject_to_conda import pyproject_to_conda_dev_env_dict
-from ..errors import PysenvNotSupportedPlatform
-from ..log import log
+from pysenv.config.config_manager import BuildSystem
+from pysenv.dev_env.pyproject_to_conda import pyproject_to_conda_venv_dict
+from pysenv.errors import PysenvNotSupportedPlatform
+from pysenv.log import log
 
-
-class BuildSystem(Enum):
-    CONDA = auto()
-    POETRY = auto()
+app = typer.Typer()
 
 
-@click.group()
-@click.option("--pyproject-file", "-f", type=click.Path(), default="pyproject.toml")
-@click.pass_context
-def cli(ctx, pyproject_file):
-    ctx.ensure_object(dict)
-    ctx.obj["conda_path"] = ensureconda(micromamba=False, mamba=False)
-    pyproject_path: Path = Path(ctx.params["pyproject_file"])
-    ctx.obj["pyproject_path"] = pyproject_path
-    if not pyproject_path.exists():
-        # log.error(f"{pyproject_path.absolute()} Not found")
-        raise BadParameter(f"{pyproject_path.absolute()} Not found")
-
-    ctx.obj["pyproject"] = toml.load(ctx.params["pyproject_file"])
+def get_default_build_system():
+    return config_reader.build_system()
 
 
-@cli.group("env")
-@click.pass_context
-def env(ctx):
-    pass
-
-
-@env.command()
-@click.option(
-    "--conda", "-c", "build_system", flag_value=BuildSystem.CONDA, default=True
-)
-@click.option("--poetry", "-p", "build_system", flag_value=BuildSystem.POETRY)
-@click.pass_context
-def install(ctx, build_system):
+@app.command()
+def install(build_system: BuildSystem = typer.Option(get_default_build_system)):
     click.echo(f"Installing environment {build_system}")
 
 
-@env.command()
-@click.option(
-    "--conda", "-c", "build_system", flag_value=BuildSystem.CONDA, default=True
-)
-@click.option("--poetry", "-p", "build_system", flag_value=BuildSystem.POETRY)
-@click.pass_context
-def sync(ctx, build_system):
+@app.command()
+def sync(build_system: BuildSystem = typer.Option(get_default_build_system)):
     if build_system == BuildSystem.POETRY:
         raise NotImplementedError()
     elif build_system == BuildSystem.CONDA:
@@ -86,36 +53,28 @@ def sync(ctx, build_system):
         raise NotImplementedError()
 
 
-@cli.command()
-@click.pass_context
-def shell(ctx):
-    name = ctx.obj["pyproject"]["tool"]["pysenv"]["env-name"]
-    env = os.environ.copy()
-    subprocess.run("/home/jirazabal/code/pysenv/activate_conda.sh", shell=False, env=env)
+# @cli.command()
+# @click.pass_context
+# def shell(ctx):
+#     name = ctx.obj["pyproject"]["tool"]["pysenv"]["env-name"]
+#     env = os.environ.copy()
+#     subprocess.run("/home/jirazabal/code/pysenv/activate_conda.sh", shell=False, env=env)
 
-@env.command()
-@click.option(
-    "--conda", "-c", "build_system", flag_value=BuildSystem.CONDA, default=True
-)
-@click.option("--poetry", "-p", "build_system", flag_value=BuildSystem.POETRY)
-@click.option(
-    "--platform",
-    "platforms",
-    type=click.Choice(DEFAULT_PLATFORMS, case_sensitive=False),
-    multiple=True,
-    default=DEFAULT_PLATFORMS,
-)
-@click.pass_context
+
+@app.command()
 def lock(
-    ctx,
-    build_system,
-    platforms,
+    build_system: BuildSystem = typer.Option(get_default_build_system),
+    platforms: List[str] = typer.Option(
+        DEFAULT_PLATFORMS,
+        case_sensitive=False,
+        help=f"conda platforms, for example osx-64 or linux-64",
+    ),
 ):
     if build_system == BuildSystem.POETRY:
         raise NotImplementedError()
     elif build_system == BuildSystem.CONDA:
         log.info("Building conda env from pyproject.toml")
-        env_dict = pyproject_to_conda_dev_env_dict(ctx.obj["pyproject_path"])
+        env_dict = pyproject_to_conda_venv_dict(ctx.obj["pyproject_path"])
         with NamedTemporaryFile(mode="w+") as f:
             yaml.safe_dump(env_dict, f)
             run_lock([Path(f.name)], conda_exe=None, platforms=platforms)

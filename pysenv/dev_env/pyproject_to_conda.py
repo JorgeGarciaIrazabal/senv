@@ -1,17 +1,23 @@
 #!/usr/bin/env python
+import collections
 
 import jinja2
 from pathlib import Path
 import re
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
-import toml
 import yaml
-from conda_lock.common import get_in
-from conda_lock.src_parser.pyproject_toml import parse_poetry_pyproject_toml
+from conda_lock.src_parser import LockSpecification
+from conda_lock.src_parser.pyproject_toml import (
+    normalize_pypi_name,
+    parse_poetry_pyproject_toml,
+    poetry_version_to_conda_version,
+    to_match_spec,
+)
 
-from ..log import log
-from ..errors import PysenvInvalidPythonVersion
+from pysenv.config import Config
+from pysenv.log import log
+from pysenv.errors import PysenvInvalidPythonVersion
 
 template = """
 package:
@@ -73,9 +79,40 @@ def _populate_python_version(python_version, dependencies):
     return python_version
 
 
-def _get_dependencies_from_pyproject(pyproject_path, include_dev_dependencies):
+# TODO: probably make a Pull request in conda lock to make this logic more accessible
+def _parse_pyproject_toml(
+    platform: str, include_dev_dependencies: bool
+) -> LockSpecification:
+    specs: List[str] = []
+    deps = Config.get().dependencies
+    if include_dev_dependencies:
+        deps.update(Config.get().dev_dependencies)
+
+    for depname, depattrs in deps.items():
+        conda_dep_name = normalize_pypi_name(depname)
+        if isinstance(depattrs, collections.Mapping):
+            poetry_version_spec = depattrs["version"]
+            # TODO: support additional features such as markers for things like sys_platform, platform_system
+        elif isinstance(depattrs, str):
+            poetry_version_spec = depattrs
+        else:
+            raise TypeError(f"Unsupported type for dependency: {depname}: {depattrs:r}")
+        conda_version = poetry_version_to_conda_version(poetry_version_spec)
+        spec = to_match_spec(conda_dep_name, conda_version)
+
+        if conda_dep_name == "python":
+            specs.insert(0, spec)
+        else:
+            specs.append(spec)
+
+    return LockSpecification(
+        specs=specs, channels=Config.get().pysenv.conda_channels, platform=platform
+    )
+
+
+def _get_dependencies_from_pyproject(include_dev_dependencies):
     lock_spec = parse_poetry_pyproject_toml(
-        pyproject_path,
+        Config.get().config_path,
         platform="linux-64",
         include_dev_dependencies=include_dev_dependencies,
     )
@@ -84,49 +121,41 @@ def _get_dependencies_from_pyproject(pyproject_path, include_dev_dependencies):
 
 
 def pyproject_to_recipe_yaml(
-    pyproject_path: Path, python_version: Optional[str] = None
+    python_version: Optional[str] = None,
+    output: Path = Path("conda.recipe") / "meta.yaml",
 ):
-    output = pyproject_to_recipe_dict(pyproject_path, python_version)
+    output_dict = pyproject_to_recipe_dict(python_version)
 
     recipe_dir = Path("conda.recipe")
-    recipe_dir.mkdir(parents=True, exist_ok=True)
-    yaml.dump(output, (recipe_dir / "meta.yaml").open(mode="w"))
+    recipe_dir.mkdir(exist_ok=True)
+    yaml.dump(output_dict, output.open(mode="w"))
 
 
-def pyproject_to_recipe_dict(
-    pyproject_path: Path, python_version: Optional[str] = None
-) -> Dict:
-    data = tomlkit.loads(pyproject_path.read_text())
-    tool_poetry_dict = data["tool"]["poetry"]
-    package_name = tool_poetry_dict["name"]
-    version = tool_poetry_dict["version"]
-    dependencies = _get_dependencies_from_pyproject(
-        pyproject_path, include_dev_dependencies=False
-    )
+def pyproject_to_recipe_dict(python_version: Optional[str] = None) -> Dict:
+    dependencies = _get_dependencies_from_pyproject(include_dev_dependencies=False)
     python_version = _populate_python_version(python_version, dependencies)
+    if python_version != Config.get().python_version:
+        log.warn(
+            "Python version in the pyproject.toml is different than the one provided"
+        )
+    if python_version is None:
+        raise PysenvInvalidPythonVersion(
+            f"No python version provided or defined in {Config.get().config_path}"
+        )
     output = jinja2.Template(template).render(
-        name=package_name,
-        version=version,
+        name=Config.get().package_name,
+        version=Config.get().version,
         run_deps=dependencies,
-        src_path=str(pyproject_path.parent.resolve()),
+        src_path=str(Config.get().config_path),
         python_version=python_version,
-        home_url=tool_poetry_dict.get("homepage", "__NONE__"),
+        home_url=Config.get().homepage,
     )
     return yaml.safe_load(output)
 
 
-def pyproject_to_conda_dev_env_dict(pyproject_path: Path) -> Dict:
-    data = toml.loads(pyproject_path.read_text())
-    tool_poetry_dict = data["tool"]["poetry"]
-    tool_pysenv_dict = data["tool"].get("pysenv", {})
-    channels = get_in(
-        ["tool", "conda-lock", "channels"],
-        data,
-        get_in(["tool", "pysenv", "conda-channels"], data, []),
-    )
-    package_name = tool_pysenv_dict.get("env-name", tool_poetry_dict["name"])
-    dependencies = _get_dependencies_from_pyproject(
-        pyproject_path, include_dev_dependencies=True
-    )
+def pyproject_to_conda_venv_dict() -> Dict:
+    channels = Config.get().pysenv.conda_channels
+    package_name = Config.get().venv_name()
+    dependencies = _get_dependencies_from_pyproject(include_dev_dependencies=True)
 
     return dict(name=package_name, channels=channels, dependencies=dependencies)
