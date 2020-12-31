@@ -12,7 +12,7 @@ def test_config_defaults_get_populated():
     config = Config(**config_dict)
     assert config.pysenv.venv.name == "my_virtual_environment"
     assert isinstance(config.pysenv.venv.build_system, BuildSystem)
-    assert isinstance(config.pysenv.venv.conda_platforms, set)
+    assert isinstance(config.pysenv.venv.conda_lock_platforms, set)
 
 
 def test_config_build_system_has_to_be_enum():

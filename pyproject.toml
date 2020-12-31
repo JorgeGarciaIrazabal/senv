@@ -8,6 +8,9 @@ version = "0.1.0"
 description = ""
 authors = ["Jorge <jorge.girazabal@gmail.com>"]
 
+[tool.poetry.scripts]
+pysenv = 'pysenv.main:app'
+
 [tool.poetry.dependencies]
 python = "^3.7.0"
 ensureconda = "^1.4.0"
@@ -15,6 +18,7 @@ appdirs = "^1.4.4"
 conda-lock = "^0.7.3"
 typer = "^0.3.2"
 pydantic = "^1.7.3"
+poetry-core = "^1.0.0"
 
 [tool.poetry.dev-dependencies]
 pyinstaller = "^4.1"
@@ -31,3 +35,5 @@ conda-channels = [
     "conda-forge",
     "defaults"
 ]
+poetry-path = "/home/jirazabal/.local/bin/poetry"
+conda-path = "/home/jirazabal/miniconda3/bin/conda"

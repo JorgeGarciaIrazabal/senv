@@ -1,8 +1,4 @@
-from pathlib import Path
 from pytest import fixture
-
-TESTS_PATH = Path(__file__).parent.resolve()
-STATIC_PATH = TESTS_PATH / "static"
 
 
 @fixture(autouse=True)

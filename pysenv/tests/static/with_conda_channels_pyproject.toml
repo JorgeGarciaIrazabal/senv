@@ -1,0 +1,23 @@
+[tool.poetry]
+name = "test_name"
+version = "0.1.0"
+description = ""
+authors = ["author <author@flatiron.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.7.0"
+tomlkit = "^0.7.0"
+appdirs = "^1.4.4"
+
+[tool.poetry.dev-dependencies]
+pytest = "^6.2.1"
+
+[build-system]
+requires = ["poetry>=0.12"]
+build-backend = "poetry.masonry.api"
+
+[tool.pysenv]
+conda-channels = [
+    "conda-forge",
+    "defaults"
+]

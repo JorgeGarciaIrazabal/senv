@@ -3,13 +3,13 @@ from sys import platform
 from tempfile import NamedTemporaryFile
 from typing import List
 
-import click
 import typer
 import yaml
 from conda_lock.conda_lock import DEFAULT_PLATFORMS, do_conda_install, run_lock
 
-from pysenv.config.config_manager import BuildSystem
-from pysenv.dev_env.pyproject_to_conda import pyproject_to_conda_venv_dict
+from pysenv.config import BuildSystem, Config
+from pysenv.utils import cd
+from pysenv.venv.pyproject_to_conda import pyproject_to_conda_venv_dict
 from pysenv.errors import PysenvNotSupportedPlatform
 from pysenv.log import log
 
@@ -17,12 +17,16 @@ app = typer.Typer()
 
 
 def get_default_build_system():
-    return config_reader.build_system()
+    return Config.get().pysenv.venv.build_system
+
+
+def get_conda_platforms():
+    return list(Config.get().pysenv.venv.conda_lock_platforms)
 
 
 @app.command()
 def install(build_system: BuildSystem = typer.Option(get_default_build_system)):
-    click.echo(f"Installing environment {build_system}")
+    typer.echo(f"Installing environment {build_system}")
 
 
 @app.command()
@@ -39,13 +43,11 @@ def sync(build_system: BuildSystem = typer.Option(get_default_build_system)):
         else:
             raise PysenvNotSupportedPlatform(f"Platform {platform} not supported")
 
-        lock_path = ctx.obj["pyproject_path"].parent / f"conda-{plat}.lock"
-        log.info(
-            f"Syncing environment {ctx.obj['pyproject']['tool']['pysenv']['env-name']}"
-        )
+        lock_path = Config.get().pysenv.venv.conda_lock_dir / f"conda-{plat}.lock"
+        log.info(f"Syncing environment {Config.get().venv_name}")
         do_conda_install(
-            conda=ctx.obj["conda_path"],
-            name=ctx.obj["pyproject"]["tool"]["pysenv"]["env-name"],
+            conda=Config.get().conda_path,
+            name=Config.get().venv_name,
             prefix=None,
             file=str(lock_path),
         )
@@ -65,23 +67,25 @@ def sync(build_system: BuildSystem = typer.Option(get_default_build_system)):
 def lock(
     build_system: BuildSystem = typer.Option(get_default_build_system),
     platforms: List[str] = typer.Option(
-        DEFAULT_PLATFORMS,
+        get_conda_platforms,
         case_sensitive=False,
         help=f"conda platforms, for example osx-64 or linux-64",
     ),
 ):
+    platforms = platforms
     if build_system == BuildSystem.POETRY:
         raise NotImplementedError()
     elif build_system == BuildSystem.CONDA:
         log.info("Building conda env from pyproject.toml")
-        env_dict = pyproject_to_conda_venv_dict(ctx.obj["pyproject_path"])
+        env_dict = pyproject_to_conda_venv_dict()
         with NamedTemporaryFile(mode="w+") as f:
-            yaml.safe_dump(env_dict, f)
-            run_lock([Path(f.name)], conda_exe=None, platforms=platforms)
+            with cd(Config.get().pysenv.venv.conda_lock_dir):
+                yaml.safe_dump(env_dict, f)
+                run_lock(
+                    [Path(f.name)],
+                    conda_exe=Config.get().conda_path,
+                    platforms=platforms,
+                )
         log.info("lock files updated, sync environment running `pysenv env sync`")
     else:
         raise NotImplementedError()
-
-
-if __name__ == "__main__":
-    cli()

@@ -29,7 +29,8 @@ class _PoetryPysenvShared(BaseModel):
 
 class _PysenvVEnv(BaseModel):
     build_system: BuildSystem = Field(BuildSystem.CONDA, alias="build-system")
-    conda_platforms: Set[str] = Field(set(DEFAULT_PLATFORMS), alias="conda-platforms")
+    conda_lock_platforms: Set[str] = Field(set(DEFAULT_PLATFORMS), alias="conda-lock-platforms")
+    conda_lock_dir: Path = Field(Path("."), alias="conda-lock-dir")
     name: Optional[str]
 
 
@@ -46,9 +47,9 @@ class _Pysenv(_PoetryPysenvShared):
     @validator("conda_path", "poetry_path")
     def _validate_executable(cls, p: Path):
         if not p.exists():
-            raise ValueError(f"Provided path {p} not found")
+            raise ValueError(f"Provided path {p} was not found")
         if not os.access(str(p), os.X_OK):
-            raise ValueError(f"Provided path {p} not executable")
+            raise ValueError(f"Provided path {p} is not executable")
         return p
 
 
@@ -67,11 +68,14 @@ class Config(BaseModel):
     _config_path: Path = PrivateAttr(None)
 
     @classmethod
-    def read_toml(cls, toml_path: Path):
+    def read_toml(cls, toml_path: Path) -> "Config":
+        if not toml_path.exists():
+            raise ValueError(f"{toml_path.absolute()} Not found")
         config_dict = toml.loads(toml_path.read_text())
         cls.__instance = Config(**config_dict)
         cls.__instance._config_path = toml_path.resolve().absolute()
         cls.__instance.validate_fields()
+        return cls.__instance
 
     @classmethod
     def get(cls):
@@ -117,6 +121,7 @@ class Config(BaseModel):
     def python_version(self):
         return self.dependencies.get("python", None)
 
+    @property
     def venv_name(self):
         return self.pysenv.venv.name or self.package_name
 

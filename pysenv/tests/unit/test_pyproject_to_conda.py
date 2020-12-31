@@ -1,6 +1,6 @@
-from pysenv.tests_unit.conftest import STATIC_PATH
 from pysenv.config import Config
-from pysenv.dev_env.pyproject_to_conda import (
+from pysenv.tests.conftest import STATIC_PATH
+from pysenv.venv.pyproject_to_conda import (
     pyproject_to_conda_venv_dict,
     pyproject_to_recipe_dict,
 )

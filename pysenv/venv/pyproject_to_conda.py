@@ -155,7 +155,6 @@ def pyproject_to_recipe_dict(python_version: Optional[str] = None) -> Dict:
 
 def pyproject_to_conda_venv_dict() -> Dict:
     channels = Config.get().pysenv.conda_channels
-    package_name = Config.get().venv_name()
     dependencies = _get_dependencies_from_pyproject(include_dev_dependencies=True)
 
-    return dict(name=package_name, channels=channels, dependencies=dependencies)
+    return dict(name=Config.get().venv_name, channels=channels, dependencies=dependencies)
