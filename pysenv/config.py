@@ -1,5 +1,5 @@
-import shutil
 import os
+import shutil
 from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional, Set
 import toml
 from conda_lock.conda_lock import DEFAULT_PLATFORMS
 from ensureconda import ensureconda
-from pydantic import BaseModel, Field, validator, PrivateAttr
+from pydantic import BaseModel, Field, PrivateAttr, validator
 
 from pysenv.log import log
 
@@ -29,7 +29,9 @@ class _PoetryPysenvShared(BaseModel):
 
 class _PysenvVEnv(BaseModel):
     build_system: BuildSystem = Field(BuildSystem.CONDA, alias="build-system")
-    conda_lock_platforms: Set[str] = Field(set(DEFAULT_PLATFORMS), alias="conda-lock-platforms")
+    conda_lock_platforms: Set[str] = Field(
+        set(DEFAULT_PLATFORMS), alias="conda-lock-platforms"
+    )
     conda_lock_dir: Path = Field(Path("."), alias="conda-lock-dir")
     name: Optional[str]
 

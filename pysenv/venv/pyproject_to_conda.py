@@ -1,11 +1,10 @@
 #!/usr/bin/env python
 import collections
-
-import jinja2
-from pathlib import Path
 import re
+from pathlib import Path
 from typing import Dict, List, Optional
 
+import jinja2
 import yaml
 from conda_lock.src_parser import LockSpecification
 from conda_lock.src_parser.pyproject_toml import (
@@ -16,8 +15,8 @@ from conda_lock.src_parser.pyproject_toml import (
 )
 
 from pysenv.config import Config
-from pysenv.log import log
 from pysenv.errors import PysenvInvalidPythonVersion
+from pysenv.log import log
 
 template = """
 package:
@@ -157,4 +156,6 @@ def pyproject_to_conda_venv_dict() -> Dict:
     channels = Config.get().pysenv.conda_channels
     dependencies = _get_dependencies_from_pyproject(include_dev_dependencies=True)
 
-    return dict(name=Config.get().venv_name, channels=channels, dependencies=dependencies)
+    return dict(
+        name=Config.get().venv_name, channels=channels, dependencies=dependencies
+    )

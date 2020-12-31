@@ -1,5 +1,4 @@
 from enum import Enum
-from typing import List, Tuple
 
 import typer
 from poetry.core.pyproject import PyProjectTOML
@@ -41,14 +40,14 @@ def set_new_setting_value(
     value: str = typer.Argument(
         None,
         help="Value of the setting. For multi value setting like the conda-platforms,"
-             " separate them with a comma ','",
+        " separate them with a comma ','",
     ),
 ):
     pyproject = PyProjectTOML(Config.get().config_path)
     toml = pyproject.file.read()
 
     sub_dict = toml
-    for k in f"tool.pysenv.{key}".split(".")[: -1]:
+    for k in f"tool.pysenv.{key}".split(".")[:-1]:
         sub_dict[k] = sub_dict.get(k, default={})
         sub_dict = sub_dict[k]
 
@@ -69,7 +68,7 @@ def remove_config_value(key: AllowedConfigKeys = typer.Argument(...)):
     toml = pyproject.file.read()
 
     sub_toml = toml
-    for k in f"tool.pysenv.{key}".split(".")[: -1]:
+    for k in f"tool.pysenv.{key}".split(".")[:-1]:
         if k not in sub_toml:
             typer.Abort()
         sub_toml = sub_toml[k]

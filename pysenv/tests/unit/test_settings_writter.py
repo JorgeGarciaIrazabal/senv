@@ -18,7 +18,14 @@ def temp_pyproject(tmp_path):
 def test_set_config_add_value_to_pyproject(temp_pyproject, cli_runner):
     cli_runner.invoke(
         app,
-        ["-f", str(temp_pyproject), "config", "set", "venv.conda-lock-platforms", "linux"],
+        [
+            "-f",
+            str(temp_pyproject),
+            "config",
+            "set",
+            "venv.conda-lock-platforms",
+            "linux",
+        ],
     )
 
     Config.read_toml(temp_pyproject)
