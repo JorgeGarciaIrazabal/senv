@@ -1,66 +1,81 @@
+import subprocess
+from os import environ
 from pathlib import Path
-from sys import platform
 from tempfile import NamedTemporaryFile
 from typing import List
 
 import typer
 import yaml
-from conda_lock.conda_lock import DEFAULT_PLATFORMS, do_conda_install, run_lock
+from conda_lock.conda_lock import do_conda_install, run_lock
 
-from pysenv.config import BuildSystem, Config
+from pysenv.command_lambdas import get_conda_platforms, get_default_build_system
+from pysenv.log import log
+from pysenv.settings.config import BuildSystem, Config
+from pysenv.shell import PysenvShell
 from pysenv.utils import cd
 from pysenv.venv.pyproject_to_conda import pyproject_to_conda_venv_dict
-from pysenv.errors import PysenvNotSupportedPlatform
-from pysenv.log import log
 
 app = typer.Typer()
 
 
-def get_default_build_system():
-    return Config.get().pysenv.venv.build_system
-
-
-def get_conda_platforms():
-    return list(Config.get().pysenv.venv.conda_lock_platforms)
+@app.command()
+def install(build_system: BuildSystem = typer.Option(get_default_build_system)):
+    sync(build_system=build_system)
 
 
 @app.command()
-def install(build_system: BuildSystem = typer.Option(get_default_build_system)):
-    typer.echo(f"Installing environment {build_system}")
+def update(
+    build_system: BuildSystem = typer.Option(get_default_build_system),
+    platforms: List[str] = typer.Option(
+        get_conda_platforms,
+        case_sensitive=False,
+        help="conda platforms, for example osx-64 or linux-64",
+    ),
+):
+    if build_system == BuildSystem.POETRY:
+        with cd(Config.get().config_path.parent):
+            subprocess.check_call([Config.get().poetry_path, "update"])
+    elif build_system == BuildSystem.CONDA:
+        lock(build_system=build_system, platforms=platforms)
+        sync(build_system=build_system)
+
+    else:
+        raise NotImplementedError()
 
 
 @app.command()
 def sync(build_system: BuildSystem = typer.Option(get_default_build_system)):
     if build_system == BuildSystem.POETRY:
-        raise NotImplementedError()
+        with cd(Config.get().config_path.parent):
+            subprocess.check_call([Config.get().poetry_path, "sync"])
     elif build_system == BuildSystem.CONDA:
-        if platform == "linux" or platform == "linux2":
-            plat = "linux-64"
-        elif platform == "darwin":
-            plat = "osx-64"
-        elif platform == "win32":
-            plat = "win-64"
-        else:
-            raise PysenvNotSupportedPlatform(f"Platform {platform} not supported")
-
-        lock_path = Config.get().pysenv.venv.conda_lock_dir / f"conda-{plat}.lock"
+        if not Config.get().platform_conda_lock.exists():
+            log.info("No lock file found, locking environment now")
+            lock(build_system=build_system, platforms=get_conda_platforms())
         log.info(f"Syncing environment {Config.get().venv_name}")
         do_conda_install(
             conda=Config.get().conda_path,
             name=Config.get().venv_name,
             prefix=None,
-            file=str(lock_path),
+            file=str(Config.get().platform_conda_lock),
         )
     else:
         raise NotImplementedError()
 
 
-# @cli.command()
-# @click.pass_context
-# def shell(ctx):
-#     name = ctx.obj["pyproject"]["tool"]["pysenv"]["env-name"]
-#     env = os.environ.copy()
-#     subprocess.run("/home/jirazabal/code/pysenv/activate_conda.sh", shell=False, env=env)
+@app.command()
+def shell(build_system: BuildSystem = typer.Option(get_default_build_system)):
+    environ["PYSENV_ACTIVE"] = "1"
+    environ["PATH"] = f"{Config.get().conda_path.parent}:{environ.get('PATH')}"
+    if build_system == BuildSystem.POETRY:
+        with cd(Config.get().config_path.parent):
+            PysenvShell.get().activate(command="poetry shell")
+    elif build_system == BuildSystem.CONDA:
+        PysenvShell.get().activate(command=f"conda activate {Config.get().venv_name}")
+    else:
+        raise NotImplementedError()
+    environ["PATH"] = ":".join(environ.get("PATH").split(":")[1:])
+    environ.pop("PYSENV_ACTIVE")
 
 
 @app.command()
@@ -69,16 +84,18 @@ def lock(
     platforms: List[str] = typer.Option(
         get_conda_platforms,
         case_sensitive=False,
-        help=f"conda platforms, for example osx-64 or linux-64",
+        help="conda platforms, for example osx-64 or linux-64",
     ),
 ):
     platforms = platforms
     if build_system == BuildSystem.POETRY:
-        raise NotImplementedError()
+        with cd(Config.get().config_path.parent):
+            subprocess.check_call([Config.get().poetry_path, "lock"])
     elif build_system == BuildSystem.CONDA:
         log.info("Building conda env from pyproject.toml")
         env_dict = pyproject_to_conda_venv_dict()
         with NamedTemporaryFile(mode="w+") as f:
+            Config.get().pysenv.venv.conda_lock_dir.mkdir(exist_ok=True, parents=True)
             with cd(Config.get().pysenv.venv.conda_lock_dir):
                 yaml.safe_dump(env_dict, f)
                 run_lock(

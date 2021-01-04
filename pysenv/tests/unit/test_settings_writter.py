@@ -2,8 +2,8 @@ from shutil import copyfile
 
 import pytest
 
-from pysenv.config import BuildSystem, Config
 from pysenv.main import app
+from pysenv.settings.config import BuildSystem, Config
 from pysenv.tests.conftest import STATIC_PATH
 
 

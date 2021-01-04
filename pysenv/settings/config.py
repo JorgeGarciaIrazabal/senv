@@ -2,6 +2,7 @@ import os
 import shutil
 from enum import Enum
 from pathlib import Path
+from sys import platform
 from typing import Any, Dict, List, Optional, Set
 
 import toml
@@ -9,6 +10,7 @@ from conda_lock.conda_lock import DEFAULT_PLATFORMS
 from ensureconda import ensureconda
 from pydantic import BaseModel, Field, PrivateAttr, validator
 
+from pysenv.errors import PysenvNotSupportedPlatform
 from pysenv.log import log
 
 
@@ -28,23 +30,36 @@ class _PoetryPysenvShared(BaseModel):
 
 
 class _PysenvVEnv(BaseModel):
-    build_system: BuildSystem = Field(BuildSystem.CONDA, alias="build-system")
+    build_system: Optional[BuildSystem] = Field(None, alias="build-system")
     conda_lock_platforms: Set[str] = Field(
         set(DEFAULT_PLATFORMS), alias="conda-lock-platforms"
     )
-    conda_lock_dir: Path = Field(Path("."), alias="conda-lock-dir")
+    conda_lock_dir: Path = Field(Path(".."), alias="conda-lock-dir")
     name: Optional[str]
 
 
 class _Pysenv(_PoetryPysenvShared):
-    name: Optional[str] = Field(None)
-    version: Optional[str] = Field(None)
-    description: Optional[str] = Field(None)
-    authors: Optional[str] = Field(None)
     conda_channels: Optional[List[str]] = Field([], alias="conda-channels")
-    conda_path: Optional[Path] = Field(None, alias="conda-path")
-    poetry_path: Optional[Path] = Field(None, alias="poetry-path")
+    conda_publish_channel: str = Field(
+        "default", alias="conda-publish-channel", env="PYSENV_CONDA_PUBLISH_CHANNEL"
+    )
+    poetry_publish_repository: Optional[str] = Field(
+        None, alias="poetry-publish-repository", env="PYSENV_POETRY_PUBLISH_REPOSITORY"
+    )
+    conda_path: Optional[Path] = Field(
+        None, alias="conda-path", env="PYSENV_CONDA_PATH"
+    )
+    poetry_path: Optional[Path] = Field(
+        None, alias="poetry-path", env="PYSENV_POETRY_PATH"
+    )
+    build_system: BuildSystem = Field(BuildSystem.CONDA, alias="build-system")
     venv: _PysenvVEnv = Field(_PysenvVEnv())
+
+    def __init__(self, **data: Any) -> None:
+        super().__init__(**data)
+        # if not build_system for the venv, then use the generic one
+        if self.venv.build_system is None:
+            self.venv.build_system = self.build_system
 
     @validator("conda_path", "poetry_path")
     def _validate_executable(cls, p: Path):
@@ -134,6 +149,18 @@ class Config(BaseModel):
     @property
     def poetry_path(self):
         return self.pysenv.poetry_path or shutil.which("poetry")
+
+    @property
+    def platform_conda_lock(self):
+        if platform == "linux" or platform == "linux2":
+            plat = "linux-64"
+        elif platform == "darwin":
+            plat = "osx-64"
+        elif platform == "win32":
+            plat = "win-64"
+        else:
+            raise PysenvNotSupportedPlatform(f"Platform {platform} not supported")
+        return self.pysenv.venv.conda_lock_dir / f"conda-{plat}.lock"
 
     def validate_fields(self):
         if self.poetry_path is None:

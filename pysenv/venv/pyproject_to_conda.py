@@ -14,9 +14,9 @@ from conda_lock.src_parser.pyproject_toml import (
     to_match_spec,
 )
 
-from pysenv.config import Config
 from pysenv.errors import PysenvInvalidPythonVersion
 from pysenv.log import log
+from pysenv.settings.config import Config
 
 template = """
 package:
@@ -35,7 +35,6 @@ requirements:
   host:
     - {{ python_version }}
     - pip
-    - poetry
   run:
 {%- for run_dep in run_deps %}
     - {{ run_dep }}
@@ -125,9 +124,9 @@ def pyproject_to_recipe_yaml(
 ):
     output_dict = pyproject_to_recipe_dict(python_version)
 
-    recipe_dir = Path("conda.recipe")
-    recipe_dir.mkdir(exist_ok=True)
-    yaml.dump(output_dict, output.open(mode="w"))
+    recipe_dir = output.parent
+    recipe_dir.mkdir(parents=True, exist_ok=True)
+    yaml.safe_dump(output_dict, output.open(mode="w"))
 
 
 def pyproject_to_recipe_dict(python_version: Optional[str] = None) -> Dict:

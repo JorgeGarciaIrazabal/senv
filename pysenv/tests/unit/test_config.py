@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from pysenv.config import BuildSystem, Config
+from pysenv.settings.config import BuildSystem, Config
 
 
 def test_config_defaults_get_populated():

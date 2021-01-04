@@ -2,12 +2,9 @@ from shutil import copyfile
 
 from pytest import fixture
 
-from pysenv.config import Config
 from pysenv.main import app
-from pysenv.settings_writer.settings_writer import (
-    AllowedConfigKeys,
-    set_new_setting_value,
-)
+from pysenv.settings.config import Config
+from pysenv.settings.settings_writer import AllowedConfigKeys, set_new_setting_value
 from pysenv.tests.conftest import STATIC_PATH
 from pysenv.utils import cd
 
@@ -36,12 +33,11 @@ def test_venv_locks_builds_the_lock_files_working_directory_by_default(
 def test_venv_locks_builds_the_lock_files_in_the_configured_directory(
     temp_pyproject, cli_runner
 ):
+    lock_dir = temp_pyproject.parent / "my_lock_folder"
     Config.read_toml(temp_pyproject)
-    set_new_setting_value(
-        AllowedConfigKeys.CONDA_LOCK_DIRECTORY, str(temp_pyproject.parent)
-    )
+    set_new_setting_value(AllowedConfigKeys.CONDA_LOCK_DIRECTORY, str(lock_dir))
     result = cli_runner.invoke(
         app, ["-f", str(temp_pyproject), "venv", "lock", "--platforms", "osx-64"]
     )
     assert result.exit_code == 0
-    assert (temp_pyproject.parent / "conda-osx-64.lock").exists()
+    assert (lock_dir / "conda-osx-64.lock").exists()

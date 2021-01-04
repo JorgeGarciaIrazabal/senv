@@ -4,17 +4,20 @@ import typer
 from poetry.core.pyproject import PyProjectTOML
 from pydantic import ValidationError
 
-from pysenv.config import Config
 from pysenv.log import log
+from pysenv.settings.config import Config
 
 
 class AllowedConfigKeys(str, Enum):
+    BUILD_SYSTEM = "build-system"
     CONDA_CHANNELS = "conda-channels"
     CONDA_PATH = "conda-path"
     POETRY_PATH = "poetry-path"
+    CONDA_PUBLISH_CHANNEL = "conda-publish-channel"
+    POETRY_PUBLISH_REPOSITORY = "poetry-publish-repository"
     CONDA_PLATFORMS = "venv.conda-lock-platforms"
     CONDA_LOCK_DIRECTORY = "venv.conda-lock-dir"
-    BUILD_SYSTEM = "venv.build-system"
+    VENV_BUILD_SYSTEM = "venv.build-system"
 
 
 CONFIG_KEYS_MULTIPLE = {

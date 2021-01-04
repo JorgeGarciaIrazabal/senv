@@ -19,6 +19,7 @@ conda-lock = "^0.7.3"
 typer = "^0.3.2"
 pydantic = "^1.7.3"
 poetry-core = "^1.0.0"
+poetry = "^1.1.4"
 
 [tool.poetry.dev-dependencies]
 pyinstaller = "^4.1"
@@ -37,3 +38,4 @@ conda-channels = [
 ]
 poetry-path = "/home/jirazabal/.local/bin/poetry"
 conda-path = "/home/jirazabal/miniconda3/bin/conda"
+build-system = "poetry"

@@ -2,13 +2,15 @@ from pathlib import Path
 
 import typer
 
-from pysenv.config import Config
-from pysenv.settings_writer import settings_writer
+from pysenv.package import package
+from pysenv.settings import settings_writer
+from pysenv.settings.config import Config
 from pysenv.venv import venv
 
 app = typer.Typer()
 app.add_typer(venv.app, name="venv")
 app.add_typer(settings_writer.app, name="config")
+app.add_typer(package.app, name="package")
 
 
 @app.callback()
