@@ -2,8 +2,8 @@ from shutil import copyfile
 
 import pytest
 
+from senv.commands.config import BuildSystem, Config
 from senv.main import app
-from senv.settings.config import BuildSystem, Config
 from senv.tests.conftest import STATIC_PATH
 
 

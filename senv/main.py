@@ -2,10 +2,9 @@ from pathlib import Path
 
 import typer
 
-from senv.package import package
-from senv.settings import settings_writer
-from senv.settings.config import Config
-from senv.venv import venv
+from senv import settings_writer
+from senv.commands import package, venv
+from senv.commands.config import Config
 
 app = typer.Typer()
 app.add_typer(venv.app, name="venv")

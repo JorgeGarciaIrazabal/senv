@@ -1,10 +1,8 @@
-from shutil import copyfile
-
 from pytest import fixture
 
+from senv.commands.config import Config
 from senv.main import app
-from senv.settings.config import Config
-from senv.settings.settings_writer import AllowedConfigKeys, set_new_setting_value
+from senv.settings_writer import AllowedConfigKeys, set_new_setting_value
 from senv.tests.conftest import STATIC_PATH
 from senv.utils import cd
 
@@ -12,11 +10,8 @@ PYPROJECT_TOML = STATIC_PATH / "with_conda_channels_pyproject.toml"
 
 
 @fixture()
-def temp_pyproject(tmp_path):
-    simple_pyproject = PYPROJECT_TOML
-    temp_path = tmp_path / "pyproject.toml"
-    copyfile(simple_pyproject, temp_path)
-    return temp_path
+def temp_pyproject(build_temp_pyproject):
+    return build_temp_pyproject(PYPROJECT_TOML)
 
 
 def test_venv_locks_builds_the_lock_files_working_directory_by_default(

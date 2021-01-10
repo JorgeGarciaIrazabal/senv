@@ -4,8 +4,8 @@ import typer
 from poetry.core.pyproject import PyProjectTOML
 from pydantic import ValidationError
 
+from senv.commands.config import Config
 from senv.log import log
-from senv.settings.config import Config
 
 
 class AllowedConfigKeys(str, Enum):

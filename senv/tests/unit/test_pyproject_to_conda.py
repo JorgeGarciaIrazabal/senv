@@ -1,9 +1,9 @@
-from senv.settings.config import Config
-from senv.tests.conftest import STATIC_PATH
-from senv.venv.pyproject_to_conda import (
+from senv.commands.config import Config
+from senv.pyproject_to_conda import (
     pyproject_to_conda_venv_dict,
     pyproject_to_recipe_dict,
 )
+from senv.tests.conftest import STATIC_PATH
 
 SIMPLE_PYPROJECT_TOML = STATIC_PATH / "simple_pyproject.toml"
 SENV_OVERRIDE_PYPROJECT_TOML = STATIC_PATH / "senv_override_pyproject.toml"

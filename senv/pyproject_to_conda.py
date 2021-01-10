@@ -15,9 +15,9 @@ from conda_lock.src_parser.pyproject_toml import (
     to_match_spec,
 )
 
+from senv.commands.config import Config
 from senv.errors import SenvInvalidPythonVersion
 from senv.log import log
-from senv.settings.config import Config
 
 template = """
 package:
@@ -75,7 +75,7 @@ def _populate_python_version(python_version, dependencies):
     python_req = [r for r in dependencies if r.split()[0] == "python"]
     if len(python_req) == 1:
         if python_version is not None and python_version != python_req[0]:
-            log.warn(
+            log.warning(
                 "Python version in the pyproject.toml is different than the one provided"
             )
         elif python_version is None:
@@ -143,7 +143,7 @@ def pyproject_to_recipe_dict(python_version: Optional[str] = None) -> Dict:
     dependencies = _get_dependencies_from_pyproject(include_dev_dependencies=False)
     python_version = _populate_python_version(python_version, dependencies)
     if python_version != Config.get().python_version:
-        log.warn(
+        log.warning(
             "Python version in the pyproject.toml is different than the one provided"
         )
     if python_version is None:

@@ -8,17 +8,17 @@ from typing import Optional
 import typer
 
 from senv.command_lambdas import get_default_build_system
+from senv.commands.config import BuildSystem, Config
 from senv.log import log
-from senv.settings.config import BuildSystem, Config
+from senv.pyproject_to_conda import pyproject_to_recipe_yaml
 from senv.utils import cd, tmp_env
-from senv.venv.pyproject_to_conda import pyproject_to_recipe_yaml
 
 app = typer.Typer()
 
 
 def _ensure_conda_build():
-    if which("conda-build") is None:
-        log.warn("conda build not found, install conda-build")
+    if which("conda-build") is not None:
+        log.warning("conda build not found, install conda-build")
         if typer.confirm("Do you want to install it?"):
             log.info("Installing conda-build")
             subprocess.check_call(
@@ -31,8 +31,12 @@ def _ensure_conda_build():
                     "-y",
                 ]
             )
+            return subprocess.check_output(
+                [Config.get().conda_path, "run", "which", "conda-build"]
+            ).strip()
         else:
             raise typer.Abort()
+    return which("conda-build")
 
 
 def _set_conda_build_path():
@@ -50,10 +54,10 @@ def build_package(
         with cd(Config.get().config_path.parent):
             subprocess.check_call([Config.get().poetry_path, "build"])
     elif build_system == BuildSystem.CONDA:
-        _ensure_conda_build()
+        conda_build_path = _ensure_conda_build()
         with tmp_env(), cd(Config.get().config_path.parent):
             _set_conda_build_path()
-            args = ["conda-build", "--no-test"]
+            args = [conda_build_path, "--no-test"]
             for c in Config.get().senv.conda_channels:
                 args += ["-c", c]
             with TemporaryDirectory(prefix="senv_") as tmpdir:

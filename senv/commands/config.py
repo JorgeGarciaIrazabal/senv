@@ -142,7 +142,7 @@ class Config(BaseModel):
 
     @property
     def conda_path(self):
-        return self.senv.conda_path or ensureconda(no_install=True)
+        return self.senv.conda_path or ensureconda(no_install=True, micromamba=False)
 
     @property
     def poetry_path(self):
@@ -162,13 +162,13 @@ class Config(BaseModel):
 
     def validate_fields(self):
         if self.poetry_path is None:
-            log.warn(
+            log.warning(
                 "No poetry executable found. "
                 "Add poetry to your PATH or define it in the pyproject.toml"
                 " with key 'tool.senv.poetry_path'"
             )
         if self.conda_path is None:
-            log.warn(
+            log.warning(
                 "No conda executable found. "
                 "Add conda to your PATH or define it in the pyproject.toml"
                 " with key 'tool.senv.conda_path'"
