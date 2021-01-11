@@ -17,7 +17,7 @@ app = typer.Typer()
 
 
 def _ensure_conda_build():
-    if which("conda-build") is not None:
+    if which("conda-build") is None:
         log.warning("conda build not found, install conda-build")
         if typer.confirm("Do you want to install it?"):
             log.info("Installing conda-build")
@@ -40,9 +40,8 @@ def _ensure_conda_build():
 
 
 def _set_conda_build_path():
-    dist_conda = Config.get().config_path.parent / "dist_conda"
-    dist_conda.mkdir(parents=True, exist_ok=True)
-    os.environ["CONDA_BLD_PATH"] = str(dist_conda)
+    Config.get().senv.conda_build_root.mkdir(parents=True, exist_ok=True)
+    os.environ["CONDA_BLD_PATH"] = str(Config.get().senv.conda_build_root)
 
 
 @app.command(name="build")
@@ -69,7 +68,7 @@ def build_package(
                     args.extend(["--python", python_version])
                 result = subprocess.run(args + [str(meta_path.parent)])
                 if result.returncode != 0:
-                    raise typer.Abort()
+                    raise typer.Abort("Failed building conda package")
     else:
         raise NotImplementedError()
 

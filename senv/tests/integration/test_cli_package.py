@@ -31,9 +31,12 @@ def test_build_simple_pyproject_with_conda_even_with_poetry_build_system_in_pypr
 ):
     with cd(temp_simple_pyproject.parent):
         result = cli_runner.invoke(
-            app, ["-f", str(temp_simple_pyproject), "package", "build"], input="y"
+            app,
+            ["-f", str(temp_simple_pyproject), "package", "build"],
+            input="y",
+            catch_exceptions=False,
         )
-    assert result.exit_code == 0, str(result.exception)
+    assert result.exit_code == 0, result.exception
 
 
 def test_publish_conda_raises_exception_if_repository_url_is_null(

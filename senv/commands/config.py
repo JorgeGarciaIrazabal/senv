@@ -10,7 +10,7 @@ from conda_lock.conda_lock import DEFAULT_PLATFORMS
 from ensureconda import ensureconda
 from pydantic import BaseModel, Field, PrivateAttr, validator
 
-from senv.errors import SenvNotSupportedPlatform
+from senv.errors import SenvBadConfiguration, SenvNotSupportedPlatform
 from senv.log import log
 
 
@@ -27,6 +27,8 @@ class _PoetrySenvShared(BaseModel):
     dependencies: Dict[str, Any] = Field(None)
     dev_dependencies: Dict[str, Any] = Field(None, alias="dev-dependencies")
     homepage: Optional[str] = Field(None)
+    documentation: Optional[str] = Field(None)
+    license: Optional[str] = Field(None)
 
 
 class _SenvVEnv(BaseModel):
@@ -52,6 +54,7 @@ class _Senv(_PoetrySenvShared):
     )
     build_system: BuildSystem = Field(BuildSystem.CONDA, alias="build-system")
     venv: _SenvVEnv = Field(_SenvVEnv())
+    conda_build_root: Path = Field(None, alias="conda-build-root")
 
     def __init__(self, **data: Any) -> None:
         super().__init__(**data)
@@ -88,7 +91,12 @@ class Config(BaseModel):
             raise ValueError(f"{toml_path.absolute()} Not found")
         config_dict = toml.loads(toml_path.read_text())
         cls.__instance = Config(**config_dict)
+
         cls.__instance._config_path = toml_path.resolve().absolute()
+        if cls.__instance.senv.conda_build_root is None:
+            cls.__instance.senv.conda_build_root = (
+                Path.home() / ".senv" / cls.__instance.package_name / "dist_conda"
+            )
         cls.__instance.validate_fields()
         return cls.__instance
 
@@ -113,15 +121,19 @@ class Config(BaseModel):
         return self.senv.dev_dependencies or self.tool.poetry.dev_dependencies
 
     @property
-    def version(self):
+    def version(self) -> str:
         return self.senv.version or self.tool.poetry.version
 
     @property
-    def description(self):
+    def description(self) -> str:
         return self.senv.description or self.tool.poetry.description
 
     @property
-    def package_name(self):
+    def documentation(self) -> str:
+        return self.senv.documentation or self.tool.poetry.documentation
+
+    @property
+    def package_name(self) -> str:
         return self.senv.name or self.tool.poetry.name
 
     @property
@@ -129,23 +141,27 @@ class Config(BaseModel):
         return self.senv.homepage or self.tool.poetry.homepage or "__NONE__"
 
     @property
-    def authors(self):
+    def authors(self) -> List[str]:
         return self.senv.authors or self.tool.poetry.authors
 
     @property
-    def python_version(self):
+    def license(self) -> str:
+        return self.senv.license or self.tool.poetry.license or "Proprietary"
+
+    @property
+    def python_version(self) -> str:
         return self.dependencies.get("python", None)
 
     @property
-    def venv_name(self):
+    def venv_name(self) -> str:
         return self.senv.venv.name or self.package_name
 
     @property
-    def conda_path(self):
+    def conda_path(self) -> Path:
         return self.senv.conda_path or ensureconda(no_install=True, micromamba=False)
 
     @property
-    def poetry_path(self):
+    def poetry_path(self) -> Path:
         return self.senv.poetry_path or shutil.which("poetry")
 
     @property
@@ -173,4 +189,15 @@ class Config(BaseModel):
                 "Add conda to your PATH or define it in the pyproject.toml"
                 " with key 'tool.senv.conda_path'"
             )
+
+        try:
+            self.senv.conda_build_root.resolve().relative_to(
+                self.config_path.parent.resolve()
+            )
+            raise SenvBadConfiguration(
+                "conda-build-root can not be a subdirectory of the project's directory"
+            )
+        except ValueError:
+            pass
+
         # todo add more validations

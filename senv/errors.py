@@ -8,3 +8,7 @@ class SenvInvalidPythonVersion(SenvError):
 
 class SenvNotSupportedPlatform(SenvError):
     pass
+
+
+class SenvBadConfiguration(SenvError):
+    pass

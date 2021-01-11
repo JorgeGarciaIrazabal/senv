@@ -2,8 +2,11 @@ import os
 from pathlib import Path
 
 import pytest
+import toml
 
 from senv.commands.config import BuildSystem, Config
+from senv.errors import SenvBadConfiguration
+from senv.utils import cd
 
 
 def test_config_defaults_get_populated():
@@ -102,3 +105,19 @@ def test_senv_overrides_poetry():
     assert config.version == "poetry1"
     assert config.description == "poetry2"
     assert config.package_name == "poetry3"
+
+
+def test_conda_build_drc_can_not_be_in_project(tmp_path):
+    tmp_toml = tmp_path / "tmp_toml"
+    config_dict = {
+        "tool": {
+            "senv": {
+                "name": "senv3",
+                "conda-build-root": "./dist",
+            },
+        }
+    }
+    tmp_toml.write_text(toml.dumps(config_dict))
+
+    with cd(tmp_path), pytest.raises(SenvBadConfiguration):
+        Config.read_toml(tmp_toml)
