@@ -1,4 +1,4 @@
-from senv.commands.config import Config
+from senv.config import Config
 
 
 def get_default_build_system():

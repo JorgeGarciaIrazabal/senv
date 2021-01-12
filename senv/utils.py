@@ -1,6 +1,10 @@
 import contextlib
 import os
+import shutil
 from pathlib import Path
+from tempfile import TemporaryDirectory
+
+from senv.config import Config
 
 
 @contextlib.contextmanager
@@ -14,7 +18,7 @@ def cd(path: Path):
 
 
 @contextlib.contextmanager
-def tmp_env():
+def tmp_env()->None:
     """
     Temporarily set the process environment variables.
 
@@ -35,3 +39,10 @@ def tmp_env():
     finally:
         os.environ.clear()
         os.environ.update(old_environ)
+
+
+@contextlib.contextmanager
+def tmp_repo() -> Path:
+    with TemporaryDirectory(prefix="senv_tmp_repo") as tmp_dir, cd(Path(tmp_dir)):
+        shutil.copytree(Config.get().config_path.parent, tmp_dir, dirs_exist_ok=True)
+        yield Path(tmp_dir)

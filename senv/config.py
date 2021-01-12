@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional, Set
 import toml
 from conda_lock.conda_lock import DEFAULT_PLATFORMS
 from ensureconda import ensureconda
-from pydantic import BaseModel, Field, PrivateAttr, validator
+from pydantic import BaseModel, Field, PrivateAttr, ValidationError, root_validator, validator
 
 from senv.errors import SenvBadConfiguration, SenvNotSupportedPlatform
 from senv.log import log
@@ -85,20 +85,30 @@ class Config(BaseModel):
     tool: _Tool
     _config_path: Path = PrivateAttr(None)
 
+    def __init__(self, **data: Any) -> None:
+        super().__init__(**data)
+        if self.package_name is None:
+            raise ValueError("package name is required")
+        if self.senv.conda_build_root is None:
+            self.senv.conda_build_root = (
+                    Path.home() / ".senv" / self.package_name / "dist_conda"
+            )
+
     @classmethod
     def read_toml(cls, toml_path: Path) -> "Config":
+        cls.__instance = Config._build_from_toml(toml_path)
+        return cls.__instance
+
+    @classmethod
+    def _build_from_toml(cls, toml_path: Path) -> "Config":
         if not toml_path.exists():
             raise ValueError(f"{toml_path.absolute()} Not found")
         config_dict = toml.loads(toml_path.read_text())
-        cls.__instance = Config(**config_dict)
+        instance = Config(**config_dict)
+        instance._config_path = toml_path.resolve().absolute()
 
-        cls.__instance._config_path = toml_path.resolve().absolute()
-        if cls.__instance.senv.conda_build_root is None:
-            cls.__instance.senv.conda_build_root = (
-                Path.home() / ".senv" / cls.__instance.package_name / "dist_conda"
-            )
-        cls.__instance.validate_fields()
-        return cls.__instance
+        instance.validate_fields()
+        return instance
 
     @classmethod
     def get(cls):
@@ -189,6 +199,9 @@ class Config(BaseModel):
                 "Add conda to your PATH or define it in the pyproject.toml"
                 " with key 'tool.senv.conda_path'"
             )
+
+        if self.senv.conda_build_root is None:
+            raise SenvBadConfiguration("conda_build_root can not be None")
 
         try:
             self.senv.conda_build_root.resolve().relative_to(

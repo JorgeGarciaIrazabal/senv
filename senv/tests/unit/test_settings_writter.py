@@ -2,7 +2,7 @@ from shutil import copyfile
 
 import pytest
 
-from senv.commands.config import BuildSystem, Config
+from senv.config import BuildSystem, Config
 from senv.main import app
 from senv.tests.conftest import STATIC_PATH
 
@@ -24,12 +24,13 @@ def test_set_config_add_value_to_pyproject(temp_pyproject, cli_runner):
             "config",
             "set",
             "venv.conda-lock-platforms",
-            "linux",
+            "linux-64",
         ],
+        catch_exceptions=False,
     )
 
     Config.read_toml(temp_pyproject)
-    assert Config.get().senv.venv.conda_lock_platforms == {"linux"}
+    assert Config.get().senv.venv.conda_lock_platforms == {"linux-64"}
 
 
 def test_set_config_with_wrong_value_does_not_change_pyproject(

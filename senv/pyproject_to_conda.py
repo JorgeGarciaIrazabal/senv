@@ -16,7 +16,7 @@ from conda_lock.src_parser.pyproject_toml import (
 )
 from pydantic import BaseModel, Field
 
-from senv.commands.config import Config
+from senv.config import Config
 from senv.errors import SenvInvalidPythonVersion
 from senv.log import log
 
@@ -144,17 +144,29 @@ def _get_dependencies_from_pyproject(include_dev_dependencies):
 
 
 def pyproject_to_recipe_yaml(
+    *,
     python_version: Optional[str] = None,
     output: Path = Path("conda.recipe") / "meta.yaml",
+    source_path: Optional[Path] = None,
 ):
-    meta = pyproject_to_meta(python_version)
+    meta = pyproject_to_meta(python_version=python_version, source_path=source_path)
 
     recipe_dir = output.parent
     recipe_dir.mkdir(parents=True, exist_ok=True)
     _yaml_safe_dump(json.loads(meta.json()), output)
 
 
-def pyproject_to_meta(python_version: Optional[str] = None) -> CondaMeta:
+def pyproject_to_meta(
+    *,
+    python_version: Optional[str] = None,
+    source_path: Optional[Path] = None,
+) -> CondaMeta:
+    """
+    :param python_version: python version used to create the conda meta file
+    :param source_path: source path of the project
+        this parameter is required when building conda as we build it in a tmp dir
+         so dynamic changes can be made
+    """
     dependencies = _get_dependencies_from_pyproject(include_dev_dependencies=False)
     python_version = _populate_python_version(python_version, dependencies)
     if python_version != Config.get().python_version:
@@ -171,7 +183,7 @@ def pyproject_to_meta(python_version: Optional[str] = None) -> CondaMeta:
 
     return CondaMeta(
         package=_Package(name=c.package_name, version=c.version),
-        source=_Source(path=c.config_path.parent.resolve()),
+        source=_Source(path=source_path or c.config_path.parent.resolve()),
         build=_Build(entry_points=[]),
         requirements=_Requirements(host=[python_version, "pip"], run=dependencies),
         about=_About(

@@ -18,6 +18,7 @@ def build_temp_pyproject(tmp_path: Path):
     def _build_temp_pyproject(pyproject_path: Path):
         temp_path = tmp_path / "pyproject.toml"
         copyfile(pyproject_path, temp_path)
+        (tmp_path / "main.py").write_text("print('hello world')")
         return temp_path
 
     return _build_temp_pyproject

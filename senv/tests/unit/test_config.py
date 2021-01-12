@@ -4,13 +4,17 @@ from pathlib import Path
 import pytest
 import toml
 
-from senv.commands.config import BuildSystem, Config
+from senv.config import BuildSystem, Config
 from senv.errors import SenvBadConfiguration
 from senv.utils import cd
 
 
 def test_config_defaults_get_populated():
-    config_dict = {"tool": {"senv": {"venv": {"name": "my_virtual_environment"}}}}
+    config_dict = {
+        "tool": {
+            "senv": {"venv": {"name": "my_virtual_environment"}, "name": "test_name"}
+        }
+    }
 
     config = Config(**config_dict)
     assert config.senv.venv.name == "my_virtual_environment"
@@ -19,7 +23,7 @@ def test_config_defaults_get_populated():
 
 
 def test_config_build_system_has_to_be_enum():
-    config_dict = {"tool": {"senv": {"venv": {"build-system": "poetry"}}}}
+    config_dict = {"tool": {"senv": {"name": "test_name", "venv": {"build-system": "poetry"}}}}
     config = Config(**config_dict)
     assert config.senv.venv.build_system == BuildSystem.POETRY
 
@@ -71,6 +75,7 @@ def test_config_conda_and_poetry_path_do_not_raises_if_it_exists_and_is_executab
     config_dict = {
         "tool": {
             "senv": {
+                "name": "test_name",
                 "conda-path": str(my_file),
             }
         }

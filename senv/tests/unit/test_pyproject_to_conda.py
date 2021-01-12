@@ -1,4 +1,4 @@
-from senv.commands.config import Config
+from senv.config import Config
 from senv.pyproject_to_conda import pyproject_to_conda_venv_dict, pyproject_to_meta
 from senv.tests.conftest import STATIC_PATH
 

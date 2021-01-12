@@ -1,8 +1,8 @@
 from pytest import fixture
 
-from senv.commands.config import Config
+from senv.config import Config
 from senv.main import app
-from senv.settings_writer import AllowedConfigKeys, set_new_setting_value
+from senv.commands.settings_writer import AllowedConfigKeys, set_new_setting_value
 from senv.tests.conftest import STATIC_PATH
 from senv.utils import cd
 
@@ -19,7 +19,9 @@ def test_venv_locks_builds_the_lock_files_working_directory_by_default(
 ):
     with cd(temp_pyproject.parent):
         result = cli_runner.invoke(
-            app, ["-f", str(temp_pyproject), "venv", "lock", "--platforms", "linux-64"]
+            app,
+            ["-f", str(temp_pyproject), "venv", "lock", "--platforms", "linux-64"],
+            catch_exceptions=False,
         )
     assert result.exit_code == 0
     assert (temp_pyproject.parent / "conda-linux-64.lock").exists()
@@ -32,7 +34,9 @@ def test_venv_locks_builds_the_lock_files_in_the_configured_directory(
     Config.read_toml(temp_pyproject)
     set_new_setting_value(AllowedConfigKeys.CONDA_LOCK_DIRECTORY, str(lock_dir))
     result = cli_runner.invoke(
-        app, ["-f", str(temp_pyproject), "venv", "lock", "--platforms", "osx-64"]
+        app,
+        ["-f", str(temp_pyproject), "venv", "lock", "--platforms", "osx-64"],
+        catch_exceptions=False,
     )
     assert result.exit_code == 0
     assert (lock_dir / "conda-osx-64.lock").exists()

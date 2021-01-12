@@ -9,7 +9,7 @@ import yaml
 from conda_lock.conda_lock import do_conda_install, run_lock
 
 from senv.command_lambdas import get_conda_platforms, get_default_build_system
-from senv.commands.config import BuildSystem, Config
+from senv.config import BuildSystem, Config
 from senv.log import log
 from senv.pyproject_to_conda import pyproject_to_conda_venv_dict
 from senv.shell import SenvShell
