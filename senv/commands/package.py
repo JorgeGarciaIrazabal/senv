@@ -60,7 +60,9 @@ def build_package(
             # removing build-system from pyproject.toml as conda doesn't like it
             # when building the package
             try:
-                remove_config_value_from_path(tmp_dir / "pyproject.toml", "build-system")
+                remove_config_value_from_path(
+                    tmp_dir / "pyproject.toml", "build-system"
+                )
             except NonExistentKey as e:
                 pass
             args = [conda_build_path, "--no-test"]

@@ -41,12 +41,12 @@ def _validate_toml(toml):
 
 @app.command(name="set")
 def set_new_setting_value(
-        key: AllowedConfigKeys = typer.Argument(...),
-        value: str = typer.Argument(
-            None,
-            help="Value of the setting. For multi value setting like the conda-platforms,"
-                 " separate them with a comma ','",
-        ),
+    key: AllowedConfigKeys = typer.Argument(...),
+    value: str = typer.Argument(
+        None,
+        help="Value of the setting. For multi value setting like the conda-platforms,"
+        " separate them with a comma ','",
+    ),
 ):
     pyproject = PyProjectTOML(Config.get().config_path)
     toml = pyproject.file.read()

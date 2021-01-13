@@ -23,7 +23,9 @@ def test_config_defaults_get_populated():
 
 
 def test_config_build_system_has_to_be_enum():
-    config_dict = {"tool": {"senv": {"name": "test_name", "venv": {"build-system": "poetry"}}}}
+    config_dict = {
+        "tool": {"senv": {"name": "test_name", "venv": {"build-system": "poetry"}}}
+    }
     config = Config(**config_dict)
     assert config.senv.venv.build_system == BuildSystem.POETRY
 

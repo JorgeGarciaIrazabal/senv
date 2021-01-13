@@ -18,7 +18,7 @@ def cd(path: Path):
 
 
 @contextlib.contextmanager
-def tmp_env()->None:
+def tmp_env() -> None:
     """
     Temporarily set the process environment variables.
 

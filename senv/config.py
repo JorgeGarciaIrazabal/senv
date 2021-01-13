@@ -8,7 +8,14 @@ from typing import Any, Dict, List, Optional, Set
 import toml
 from conda_lock.conda_lock import DEFAULT_PLATFORMS
 from ensureconda import ensureconda
-from pydantic import BaseModel, Field, PrivateAttr, ValidationError, root_validator, validator
+from pydantic import (
+    BaseModel,
+    Field,
+    PrivateAttr,
+    ValidationError,
+    root_validator,
+    validator,
+)
 
 from senv.errors import SenvBadConfiguration, SenvNotSupportedPlatform
 from senv.log import log
@@ -91,7 +98,7 @@ class Config(BaseModel):
             raise ValueError("package name is required")
         if self.senv.conda_build_root is None:
             self.senv.conda_build_root = (
-                    Path.home() / ".senv" / self.package_name / "dist_conda"
+                Path.home() / ".senv" / self.package_name / "dist_conda"
             )
 
     @classmethod
