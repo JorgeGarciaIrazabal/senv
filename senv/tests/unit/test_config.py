@@ -120,7 +120,7 @@ def test_conda_build_drc_can_not_be_in_project(tmp_path):
         "tool": {
             "senv": {
                 "name": "senv3",
-                "conda-build-root": "./dist",
+                "conda-build-path": "./dist",
             },
         }
     }

@@ -3,6 +3,7 @@ import os
 import shutil
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from typing import Iterator
 
 from senv.config import Config
 
@@ -42,7 +43,10 @@ def tmp_env() -> None:
 
 
 @contextlib.contextmanager
-def tmp_repo() -> Path:
+def tmp_repo() -> Iterator[Config]:
+    original_config_path = Config.get().config_path
     with TemporaryDirectory(prefix="senv_tmp_repo") as tmp_dir, cd(Path(tmp_dir)):
         shutil.copytree(Config.get().config_path.parent, tmp_dir, dirs_exist_ok=True)
-        yield Path(tmp_dir)
+        Config.read_toml(Path(tmp_dir, "pyproject.toml"))
+        yield Config.get()
+    Config.read_toml(original_config_path)

@@ -39,16 +39,8 @@ def _validate_toml(toml):
         raise typer.Abort()
 
 
-@app.command(name="set")
-def set_new_setting_value(
-    key: AllowedConfigKeys = typer.Argument(...),
-    value: str = typer.Argument(
-        None,
-        help="Value of the setting. For multi value setting like the conda-platforms,"
-        " separate them with a comma ','",
-    ),
-):
-    pyproject = PyProjectTOML(Config.get().config_path)
+def set_config_value_to_pyproject(path: Path, key: str, value: str):
+    pyproject = PyProjectTOML(path)
     toml = pyproject.file.read()
 
     sub_dict = toml
@@ -67,7 +59,19 @@ def set_new_setting_value(
     pyproject.file.write(toml)
 
 
-def remove_config_value_from_path(path: Path, key: str):
+@app.command(name="set")
+def set_new_setting_value(
+    key: AllowedConfigKeys = typer.Argument(...),
+    value: str = typer.Argument(
+        None,
+        help="Value of the setting. For multi value setting like the conda-platforms,"
+        " separate them with a comma ','",
+    ),
+):
+    set_config_value_to_pyproject(Config.get().config_path, key, value)
+
+
+def remove_config_value_from_pyproject(path: Path, key: str):
     pyproject = PyProjectTOML(path)
     toml = pyproject.file.read()
 
@@ -86,4 +90,4 @@ def remove_config_value_from_path(path: Path, key: str):
 
 @app.command(name="remove")
 def remove_config_value(key: AllowedConfigKeys = typer.Argument(...)):
-    remove_config_value_from_path(Config.get().config_path, f"tool.senv.{key}")
+    remove_config_value_from_pyproject(Config.get().config_path, f"tool.senv.{key}")

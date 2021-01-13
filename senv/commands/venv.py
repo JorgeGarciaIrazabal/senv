@@ -87,7 +87,6 @@ def lock(
         help="conda platforms, for example osx-64 or linux-64",
     ),
 ):
-    platforms = platforms
     if build_system == BuildSystem.POETRY:
         with cd(Config.get().config_path.parent):
             subprocess.check_call([Config.get().poetry_path, "lock"])

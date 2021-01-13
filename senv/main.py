@@ -2,13 +2,14 @@ from pathlib import Path
 
 import typer
 
-from senv.commands import package, settings_writer, venv
+from senv.commands import lock, package, settings_writer, venv
 from senv.config import Config
 
 app = typer.Typer()
 app.add_typer(venv.app, name="venv")
 app.add_typer(settings_writer.app, name="config")
 app.add_typer(package.app, name="package")
+app.add_typer(lock.app, name="lock")
 
 
 @app.callback()

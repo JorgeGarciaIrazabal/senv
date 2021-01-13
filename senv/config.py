@@ -12,8 +12,6 @@ from pydantic import (
     BaseModel,
     Field,
     PrivateAttr,
-    ValidationError,
-    root_validator,
     validator,
 )
 
@@ -48,20 +46,23 @@ class _SenvVEnv(BaseModel):
 
 
 class _Senv(_PoetrySenvShared):
-    conda_channels: Optional[List[str]] = Field([], alias="conda-channels")
-    conda_publish_channel: str = Field(
-        "default", alias="conda-publish-channel", env="SENV_CONDA_PUBLISH_CHANNEL"
+    venv: _SenvVEnv = Field(_SenvVEnv())
+    conda_path: Optional[Path] = Field(None, alias="conda-path", env="SENV_CONDA_PATH")
+    conda_build_path: Path = Field(
+        None, alias="conda-build-path", env="SENV_CONDA_BUILD_PATH"
     )
+    conda_channels: Optional[List[str]] = Field([], alias="conda-channels")
+    conda_publish_channel: Optional[str] = Field(
+        None, alias="conda-publish-channel", env="SENV_CONDA_PUBLISH_CHANNEL"
+    )
+    app_lock_dir: Path = Field(Path("app_lock_dir"), alias="conda-app-lock-dir")
     poetry_publish_repository: Optional[str] = Field(
         None, alias="poetry-publish-repository", env="SENV_POETRY_PUBLISH_REPOSITORY"
     )
-    conda_path: Optional[Path] = Field(None, alias="conda-path", env="SENV_CONDA_PATH")
     poetry_path: Optional[Path] = Field(
         None, alias="poetry-path", env="SENV_POETRY_PATH"
     )
     build_system: BuildSystem = Field(BuildSystem.CONDA, alias="build-system")
-    venv: _SenvVEnv = Field(_SenvVEnv())
-    conda_build_root: Path = Field(None, alias="conda-build-root")
 
     def __init__(self, **data: Any) -> None:
         super().__init__(**data)
@@ -96,8 +97,8 @@ class Config(BaseModel):
         super().__init__(**data)
         if self.package_name is None:
             raise ValueError("package name is required")
-        if self.senv.conda_build_root is None:
-            self.senv.conda_build_root = (
+        if self.senv.conda_build_path is None:
+            self.senv.conda_build_path = (
                 Path.home() / ".senv" / self.package_name / "dist_conda"
             )
 
@@ -130,11 +131,11 @@ class Config(BaseModel):
         return self.tool.senv
 
     @property
-    def dependencies(self):
+    def dependencies(self) -> Dict[str, Any]:
         return self.senv.dependencies or self.tool.poetry.dependencies
 
     @property
-    def dev_dependencies(self):
+    def dev_dependencies(self) -> Dict[str, Any]:
         return self.senv.dev_dependencies or self.tool.poetry.dev_dependencies
 
     @property
@@ -207,15 +208,15 @@ class Config(BaseModel):
                 " with key 'tool.senv.conda_path'"
             )
 
-        if self.senv.conda_build_root is None:
+        if self.senv.conda_build_path is None:
             raise SenvBadConfiguration("conda_build_root can not be None")
 
         try:
-            self.senv.conda_build_root.resolve().relative_to(
+            self.senv.conda_build_path.resolve().relative_to(
                 self.config_path.parent.resolve()
             )
             raise SenvBadConfiguration(
-                "conda-build-root can not be a subdirectory of the project's directory"
+                "conda-build-path can not be a subdirectory of the project's directory"
             )
         except ValueError:
             pass

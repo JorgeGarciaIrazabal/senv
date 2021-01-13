@@ -148,12 +148,13 @@ def pyproject_to_recipe_yaml(
     python_version: Optional[str] = None,
     output: Path = Path("conda.recipe") / "meta.yaml",
     source_path: Optional[Path] = None,
-):
+) -> Path:
     meta = pyproject_to_meta(python_version=python_version, source_path=source_path)
 
     recipe_dir = output.parent
     recipe_dir.mkdir(parents=True, exist_ok=True)
     _yaml_safe_dump(json.loads(meta.json()), output)
+    return output
 
 
 def pyproject_to_meta(
