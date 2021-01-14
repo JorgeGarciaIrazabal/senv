@@ -44,6 +44,7 @@ def tmp_env() -> None:
 
 @contextlib.contextmanager
 def tmp_repo() -> Iterator[Config]:
+    # this might not be very realistic for very big projects
     original_config_path = Config.get().config_path
     with TemporaryDirectory(prefix="senv_tmp_repo") as tmp_dir, cd(Path(tmp_dir)):
         shutil.copytree(Config.get().config_path.parent, tmp_dir, dirs_exist_ok=True)

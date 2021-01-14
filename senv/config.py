@@ -41,7 +41,7 @@ class _SenvVEnv(BaseModel):
     conda_lock_platforms: Set[str] = Field(
         set(DEFAULT_PLATFORMS), alias="conda-lock-platforms"
     )
-    conda_lock_dir: Path = Field(Path("."), alias="conda-lock-dir")
+    venv_lock_dir: Path = Field(Path("venv_locks_dir"), alias="venv-lock-dir")
     name: Optional[str]
 
 
@@ -55,7 +55,7 @@ class _Senv(_PoetrySenvShared):
     conda_publish_channel: Optional[str] = Field(
         None, alias="conda-publish-channel", env="SENV_CONDA_PUBLISH_CHANNEL"
     )
-    app_lock_dir: Path = Field(Path("app_lock_dir"), alias="conda-app-lock-dir")
+    package_lock_dir: Path = Field(Path("package_locks_dir"), alias="package-lock-dir")
     poetry_publish_repository: Optional[str] = Field(
         None, alias="poetry-publish-repository", env="SENV_POETRY_PUBLISH_REPOSITORY"
     )
@@ -155,7 +155,7 @@ class Config(BaseModel):
         return self.senv.name or self.tool.poetry.name
 
     @property
-    def homepage(self):
+    def homepage(self) -> str:
         return self.senv.homepage or self.tool.poetry.homepage or "__NONE__"
 
     @property
@@ -192,7 +192,7 @@ class Config(BaseModel):
             plat = "win-64"
         else:
             raise SenvNotSupportedPlatform(f"Platform {platform} not supported")
-        return self.senv.venv.conda_lock_dir / f"conda-{plat}.lock"
+        return self.senv.venv.venv_lock_dir / f"conda-{plat}.lock"
 
     def validate_fields(self):
         if self.poetry_path is None:

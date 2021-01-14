@@ -4,7 +4,7 @@ import json
 import re
 from io import StringIO
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 import yaml
 from conda_lock.src_parser import LockSpecification
@@ -147,9 +147,8 @@ def pyproject_to_recipe_yaml(
     *,
     python_version: Optional[str] = None,
     output: Path = Path("conda.recipe") / "meta.yaml",
-    source_path: Optional[Path] = None,
 ) -> Path:
-    meta = pyproject_to_meta(python_version=python_version, source_path=source_path)
+    meta = pyproject_to_meta(python_version=python_version)
 
     recipe_dir = output.parent
     recipe_dir.mkdir(parents=True, exist_ok=True)
@@ -160,13 +159,9 @@ def pyproject_to_recipe_yaml(
 def pyproject_to_meta(
     *,
     python_version: Optional[str] = None,
-    source_path: Optional[Path] = None,
 ) -> CondaMeta:
     """
     :param python_version: python version used to create the conda meta file
-    :param source_path: source path of the project
-        this parameter is required when building conda as we build it in a tmp dir
-         so dynamic changes can be made
     """
     dependencies = _get_dependencies_from_pyproject(include_dev_dependencies=False)
     python_version = _populate_python_version(python_version, dependencies)
@@ -184,7 +179,7 @@ def pyproject_to_meta(
 
     return CondaMeta(
         package=_Package(name=c.package_name, version=c.version),
-        source=_Source(path=source_path or c.config_path.parent.resolve()),
+        source=_Source(path=c.config_path.parent.resolve()),
         build=_Build(entry_points=[]),
         requirements=_Requirements(host=[python_version, "pip"], run=dependencies),
         about=_About(
@@ -204,3 +199,51 @@ def pyproject_to_conda_venv_dict() -> Dict:
     return dict(
         name=Config.get().venv_name, channels=channels, dependencies=dependencies
     )
+
+
+def pyproject_to_env_app_yaml(
+    *,
+    app_name: Optional[str] = None,
+    channels: Optional[List[str]] = None,
+    output: Path = Path("app_environment.yaml"),
+) -> Path:
+    """
+    Generates a basic yaml with only it's current version as the dependency
+    In order to use it, the package has to be published
+    :param app_name: the name of the app,
+        by default it will use the name of the package in pyproject.toml
+    :param channels: the conda channels needed for the env,
+        by default using the channels defined in pyproject.toml
+    :param output: where to save the yaml
+    :return: output
+    """
+    c = Config.get()
+    return create_env_yaml(
+        name=app_name,
+        channels=channels,
+        dependencies={c.package_name: f"=={c.version}"},
+        output=output
+    )
+
+
+def create_env_yaml(
+    *,
+    dependencies: Dict[str, Any],
+    output: Path,
+    name: Optional[str] = None,
+    channels: Optional[List[str]] = None,
+) -> Path:
+    if channels is None:
+        channels = []
+
+    c = Config.get()
+    yaml_dict = dict(
+        name=name or c.package_name,
+        channels=channels if channels is not None else c.senv.conda_channels,
+        dependencies=dependencies,
+    )
+
+    recipe_dir = output.parent
+    recipe_dir.mkdir(parents=True, exist_ok=True)
+    _yaml_safe_dump(yaml_dict, output)
+    return output

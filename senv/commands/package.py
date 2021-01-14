@@ -2,17 +2,31 @@ import os
 import subprocess
 from pathlib import Path
 from shutil import which
-from typing import Optional
+from tempfile import TemporaryDirectory
+from typing import List, Optional
 
 import requests
 import typer
+from conda_lock.conda_lock import run_lock
+from conda_lock.src_parser.pyproject_toml import normalize_pypi_name
 from tomlkit.exceptions import NonExistentKey
 
-from senv.command_lambdas import get_default_build_system
-from senv.commands.settings_writer import remove_config_value_from_pyproject
+from senv.command_lambdas import (
+    get_conda_channels,
+    get_conda_platforms,
+    get_default_build_system,
+)
+from senv.commands.settings_writer import (
+    remove_config_value_from_pyproject,
+)
 from senv.config import BuildSystem, Config
+from senv.errors import SenvError, SenvNotAllRequiredLockFiles
 from senv.log import log
-from senv.pyproject_to_conda import pyproject_to_recipe_yaml
+from senv.pyproject_to_conda import (
+    create_env_yaml,
+    pyproject_to_env_app_yaml,
+    pyproject_to_recipe_yaml,
+)
 from senv.utils import cd, tmp_env, tmp_repo
 
 app = typer.Typer()
@@ -72,7 +86,6 @@ def build_package(
             pyproject_to_recipe_yaml(
                 python_version=python_version,
                 output=meta_path,
-                source_path=config.config_path.parent,
             )
             if python_version:
                 args.extend(["--python", python_version])
@@ -83,7 +96,7 @@ def build_package(
         raise NotImplementedError()
 
 
-def publish_conda(username: str, password: str, repository_url: str):
+def _publish_conda(username: str, password: str, repository_url: str):
     conda_dist = Config.get().senv.conda_build_path
     for tar_path in conda_dist.glob(f"*/{Config.get().package_name}*.tar.bz2"):
         package = tar_path.name
@@ -142,6 +155,105 @@ def publish_package(
                     "repository_url is required to publish a conda environment. "
                     "Only private channels are currently allowed"
                 )
-            publish_conda(username, password, repository_url)
+            _publish_conda(username, password, repository_url)
+    else:
+        raise NotImplementedError()
+
+
+def build_lock_paths(based_on_tested_lock_files_template, platforms):
+    lock_paths = {}
+    if "{platform}" not in based_on_tested_lock_files_template:
+        raise SenvError("no {platform} in 'based_on_tested_lock_files_template'")
+    for platform in platforms:
+        lock_paths[platform] = Path(
+            based_on_tested_lock_files_template.replace("{platform}", platform)
+        )
+    missing_lock_files = [p for p in lock_paths.values() if not p.exists()]
+
+    if len(missing_lock_files) > 0:
+        raise SenvNotAllRequiredLockFiles(missing_lock_files)
+    return lock_paths
+
+
+def _generate_app_lock_file_based_on_tested_lock_path(
+    platform, lock_path, direct_dependencies_name, conda_channels
+):
+    with cd(Config.get().senv.package_lock_dir), TemporaryDirectory() as tmp_dir:
+        lock_str = lock_path.read_text()
+        lock_str = lock_str.split("@EXPLICIT", 1)[1].strip()
+        # add the current package
+        dependencies = {
+            Config.get().package_name: f"=={Config.get().version}",
+        }
+        for line in lock_str.splitlines(keepends=False):
+            channel, dep = line.rsplit("/", 1)
+            name, version, _ = dep.rsplit("-", 2)
+            if name.lower() in direct_dependencies_name:
+                dependencies[name] = f"=={version}"
+        yaml_path = create_env_yaml(
+            channels=conda_channels,
+            output=Path(tmp_dir) / "env.yaml",
+            dependencies=dependencies,
+        )
+        run_lock(
+            [yaml_path],
+            conda_exe=Config.get().conda_path,
+            platforms=[platform],
+        )
+
+
+@app.command(name="lock")
+def lock_app(
+    build_system: BuildSystem = typer.Option(get_default_build_system),
+    platforms: List[str] = typer.Option(
+        get_conda_platforms,
+        case_sensitive=False,
+        help="conda platforms, for example osx-64 and/or linux-64",
+    ),
+    based_on_tested_lock_files_template: Optional[str] = typer.Option(
+        None,
+        help="Create the lock file with the same direct dependencies"
+        " as the ones pinned in the lock template provided.\n"
+        "For conda locks, this template should include `{platform}`"
+        " so each platform output can be based on the right lock file.\n"
+        "More information in {Todo: add link to documentation}",
+    ),
+    conda_channels: Optional[List[str]] = typer.Option(
+        get_conda_channels,
+    ),
+):
+    platforms = platforms
+    if build_system == BuildSystem.POETRY:
+        raise NotImplementedError()
+    elif build_system == BuildSystem.CONDA:
+        Config.get().senv.package_lock_dir.mkdir(exist_ok=True, parents=True)
+        if based_on_tested_lock_files_template is None:
+            with cd(
+                Config.get().senv.package_lock_dir
+            ), TemporaryDirectory() as tmp_dir:
+                env_app_yaml = pyproject_to_env_app_yaml(
+                    channels=conda_channels,
+                    output=Path(tmp_dir) / "env.yaml",
+                )
+                run_lock(
+                    [env_app_yaml],
+                    conda_exe=Config.get().conda_path,
+                    platforms=platforms,
+                )
+        else:
+            lock_paths = build_lock_paths(
+                based_on_tested_lock_files_template, platforms
+            )
+            direct_dependencies_name = {
+                normalize_pypi_name(d).lower() for d in Config.get().dependencies.keys()
+            }
+            # always include python even if it is not in the dependencies
+            direct_dependencies_name.add("python")
+
+            for platform, path in lock_paths.items():
+                _generate_app_lock_file_based_on_tested_lock_path(
+                    platform, path, direct_dependencies_name, conda_channels
+                )
+
     else:
         raise NotImplementedError()

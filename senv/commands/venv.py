@@ -94,8 +94,8 @@ def lock(
         log.info("Building conda env from pyproject.toml")
         env_dict = pyproject_to_conda_venv_dict()
         with NamedTemporaryFile(mode="w+") as f:
-            Config.get().senv.venv.conda_lock_dir.mkdir(exist_ok=True, parents=True)
-            with cd(Config.get().senv.venv.conda_lock_dir):
+            Config.get().senv.venv.venv_lock_dir.mkdir(exist_ok=True, parents=True)
+            with cd(Config.get().senv.venv.venv_lock_dir):
                 yaml.safe_dump(env_dict, f)
                 run_lock(
                     [Path(f.name)],
