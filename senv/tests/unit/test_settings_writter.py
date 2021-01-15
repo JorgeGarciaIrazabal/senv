@@ -2,8 +2,8 @@ from shutil import copyfile
 
 import pytest
 
-from senv.pyproject import BuildSystem, PyProject
 from senv.main import app
+from senv.pyproject import BuildSystem, PyProject
 from senv.tests.conftest import STATIC_PATH
 
 
@@ -65,4 +65,6 @@ def test_remove_config_key_removes_it_from_file(temp_pyproject, cli_runner):
         ["-f", str(temp_pyproject), "config", "remove", "venv.build-system"],
     )
 
-    assert PyProject.read_toml(temp_pyproject).senv.venv.build_system == BuildSystem.CONDA
+    assert (
+        PyProject.read_toml(temp_pyproject).senv.venv.build_system == BuildSystem.CONDA
+    )

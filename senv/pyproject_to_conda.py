@@ -16,9 +16,9 @@ from conda_lock.src_parser.pyproject_toml import (
 )
 from pydantic import BaseModel, Field
 
-from senv.pyproject import PyProject
 from senv.errors import SenvInvalidPythonVersion
 from senv.log import log
+from senv.pyproject import PyProject
 
 version_pattern = re.compile("version='(.*)'")
 
@@ -222,7 +222,7 @@ def pyproject_to_env_app_yaml(
         name=app_name,
         channels=channels,
         dependencies={c.package_name: f"=={c.version}"},
-        output=output
+        output=output,
     )
 
 

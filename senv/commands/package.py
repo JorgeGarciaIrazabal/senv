@@ -16,12 +16,10 @@ from senv.command_lambdas import (
     get_conda_platforms,
     get_default_build_system,
 )
-from senv.commands.settings_writer import (
-    remove_config_value_from_pyproject,
-)
-from senv.pyproject import BuildSystem, PyProject
+from senv.commands.settings_writer import remove_config_value_from_pyproject
 from senv.errors import SenvError, SenvNotAllRequiredLockFiles
 from senv.log import log
+from senv.pyproject import BuildSystem, PyProject
 from senv.pyproject_to_conda import (
     create_env_yaml,
     pyproject_to_env_app_yaml,
@@ -77,7 +75,7 @@ def build_package(
             # when building the package
             try:
                 remove_config_value_from_pyproject(config.config_path, "build-system")
-            except NonExistentKey as e:
+            except NonExistentKey:
                 pass
             args = [conda_build_path, "--no-test"]
             for c in PyProject.get().senv.conda_channels:
@@ -131,7 +129,7 @@ def publish_package(
     if build_system == BuildSystem.POETRY:
         with cd(PyProject.get().config_path.parent):
             repository_url = (
-                    repository_url or PyProject.get().senv.poetry_publish_repository
+                repository_url or PyProject.get().senv.poetry_publish_repository
             )
             if repository_url is not None:
                 subprocess.check_call(
@@ -148,7 +146,9 @@ def publish_package(
             subprocess.check_call(args)
     elif build_system == BuildSystem.CONDA:
         with cd(PyProject.get().config_path.parent):
-            repository_url = repository_url or PyProject.get().senv.conda_publish_channel
+            repository_url = (
+                repository_url or PyProject.get().senv.conda_publish_channel
+            )
             # todo, this is super specific to our case, we need to make this more generic
             if repository_url is None:
                 raise NotImplementedError(
@@ -245,7 +245,8 @@ def lock_app(
                 based_on_tested_lock_files_template, platforms
             )
             direct_dependencies_name = {
-                normalize_pypi_name(d).lower() for d in PyProject.get().senv.dependencies.keys()
+                normalize_pypi_name(d).lower()
+                for d in PyProject.get().senv.dependencies.keys()
             }
             # always include python even if it is not in the dependencies
             direct_dependencies_name.add("python")

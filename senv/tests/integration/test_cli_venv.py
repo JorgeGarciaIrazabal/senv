@@ -1,8 +1,8 @@
 from pytest import fixture
 
-from senv.pyproject import PyProject
-from senv.main import app
 from senv.commands.settings_writer import AllowedConfigKeys, set_new_setting_value
+from senv.main import app
+from senv.pyproject import PyProject
 from senv.tests.conftest import STATIC_PATH
 from senv.utils import cd
 
@@ -25,8 +25,8 @@ def test_venv_locks_builds_the_lock_files_in_default_venv_lock_files(
         )
         assert result.exit_code == 0
         assert (
-                PyProject.get().senv.venv.__fields__["venv_lock_dir"].default
-                / "conda-linux-64.lock"
+            PyProject.get().senv.venv.__fields__["venv_lock_dir"].default
+            / "conda-linux-64.lock"
         ).exists()
 
 
