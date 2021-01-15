@@ -1,11 +1,11 @@
 from pathlib import Path
 
-from pytest import fixture, mark
+from pytest import fixture
 from typer.testing import CliRunner
 
-from senv.pyproject import PyProject
 from senv.errors import SenvNotAllRequiredLockFiles
 from senv.main import app
+from senv.pyproject import PyProject
 from senv.tests.conftest import STATIC_PATH
 from senv.utils import cd
 
@@ -50,7 +50,10 @@ def test_build_conda_installs_conda_build_if_necessary(
 ):
     with cd(temp_small_conda_pyproject.parent):
         result = cli_runner.invoke(
-            app, ["-f", str(temp_small_conda_pyproject), "package", "build"], input="y"
+            app,
+            ["-f", str(temp_small_conda_pyproject), "package", "build"],
+            input="y",
+            catch_exceptions=False,
         )
     assert result.exit_code == 0, str(result.exception)
 

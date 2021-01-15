@@ -46,8 +46,9 @@ def tmp_env() -> None:
 def tmp_repo() -> Iterator[PyProject]:
     # this might not be very realistic for very big projects
     original_config_path = PyProject.get().config_path
-    with TemporaryDirectory(prefix="senv_tmp_repo") as tmp_dir, cd(Path(tmp_dir)):
-        shutil.copytree(PyProject.get().config_path.parent, tmp_dir)
-        PyProject.read_toml(Path(tmp_dir, "pyproject.toml"))
+    with TemporaryDirectory(prefix="senv_tmp_repo-") as tmp_dir, cd(Path(tmp_dir)):
+        project_dir = Path(tmp_dir, "project")
+        shutil.copytree(PyProject.get().config_path.parent, project_dir)
+        PyProject.read_toml(Path(project_dir, "pyproject.toml"))
         yield PyProject.get()
     PyProject.read_toml(original_config_path)
