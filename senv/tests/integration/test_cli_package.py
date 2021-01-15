@@ -3,7 +3,7 @@ from pathlib import Path
 from pytest import fixture, mark
 from typer.testing import CliRunner
 
-from senv.config import Config
+from senv.pyproject import PyProject
 from senv.errors import SenvNotAllRequiredLockFiles
 from senv.main import app
 from senv.tests.conftest import STATIC_PATH
@@ -41,7 +41,7 @@ def appdirs_venv_lock_path(temp_appdirs_pyproject) -> Path:
             ],
         )
         assert result.exit_code == 0
-        venv_lock_path = Config.get().senv.venv.venv_lock_dir / "conda-linux-64.lock"
+        venv_lock_path = PyProject.get().senv.venv.venv_lock_dir / "conda-linux-64.lock"
         return venv_lock_path
 
 
@@ -98,7 +98,7 @@ def test_lock_appdirs_simple_does_not_include_fake_dependencies(
             catch_exceptions=False,
         )
         assert result.exit_code == 0
-        lock_path = Config.get().senv.package_lock_dir / "conda-linux-64.lock"
+        lock_path = PyProject.get().senv.package_lock_dir / "conda-linux-64.lock"
         assert lock_path.exists()
         assert "click" not in lock_path.read_text()
 
@@ -126,7 +126,7 @@ def test_lock_based_on_tested_includes_pinned_dependencies(
             catch_exceptions=False,
         )
         assert result.exit_code == 0
-        lock_path = Config.get().senv.package_lock_dir / "conda-linux-64.lock"
+        lock_path = PyProject.get().senv.package_lock_dir / "conda-linux-64.lock"
 
         assert lock_path.exists()
         assert click_line in lock_path.read_text()

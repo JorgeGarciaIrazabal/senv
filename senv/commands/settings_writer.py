@@ -5,7 +5,7 @@ import typer
 from poetry.core.pyproject import PyProjectTOML
 from pydantic import ValidationError
 
-from senv.config import Config
+from senv.pyproject import PyProject
 from senv.log import log
 
 
@@ -32,8 +32,8 @@ app = typer.Typer()
 
 def _validate_toml(toml):
     try:
-        c = Config(**toml)
-        c._config_path = Config.get().config_path
+        c = PyProject(**toml)
+        c._config_path = PyProject.get().config_path
         c.validate_fields()
     except ValidationError as e:
         log.error(str(e))
@@ -56,7 +56,7 @@ def set_config_value_to_pyproject(path: Path, key: str, value: str):
     else:
         sub_dict[last_key] = value
 
-    _validate_toml(toml)
+    _validate_toml(dict(toml.items()))
     pyproject.file.write(toml)
 
 
@@ -69,7 +69,7 @@ def set_new_setting_value(
         " separate them with a comma ','",
     ),
 ):
-    set_config_value_to_pyproject(Config.get().config_path, key, value)
+    set_config_value_to_pyproject(PyProject.get().config_path, key, value)
 
 
 def remove_config_value_from_pyproject(path: Path, key: str):
@@ -85,10 +85,10 @@ def remove_config_value_from_pyproject(path: Path, key: str):
     last_key = key.split(".")[-1]
     del sub_toml[last_key]
 
-    _validate_toml(toml)
+    _validate_toml(dict(toml.items()))
     pyproject.file.write(toml)
 
 
 @app.command(name="remove")
 def remove_config_value(key: AllowedConfigKeys = typer.Argument(...)):
-    remove_config_value_from_pyproject(Config.get().config_path, f"tool.senv.{key}")
+    remove_config_value_from_pyproject(PyProject.get().config_path, f"tool.senv.{key}")

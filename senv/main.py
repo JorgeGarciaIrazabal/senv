@@ -4,7 +4,7 @@ from pathlib import Path
 import typer
 
 from senv.commands import package, settings_writer, venv
-from senv.config import Config
+from senv.pyproject import PyProject
 
 app = typer.Typer()
 app.add_typer(venv.app, name="venv")
@@ -21,8 +21,8 @@ def users_callback(
     )
 ):
     typer.echo(f"{pyproject_file}")
-    Config.read_toml(pyproject_file)
-    chdir(Config.get().config_path.parent)
+    PyProject.read_toml(pyproject_file)
+    chdir(PyProject.get().config_path.parent)
 
 
 if __name__ == "__main__":

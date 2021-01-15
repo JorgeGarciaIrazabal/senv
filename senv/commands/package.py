@@ -19,7 +19,7 @@ from senv.command_lambdas import (
 from senv.commands.settings_writer import (
     remove_config_value_from_pyproject,
 )
-from senv.config import BuildSystem, Config
+from senv.pyproject import BuildSystem, PyProject
 from senv.errors import SenvError, SenvNotAllRequiredLockFiles
 from senv.log import log
 from senv.pyproject_to_conda import (
@@ -39,7 +39,7 @@ def _ensure_conda_build():
             log.info("Installing conda-build")
             subprocess.check_call(
                 [
-                    Config.get().conda_path,
+                    PyProject.get().conda_path,
                     "install",
                     "conda-build",
                     "-c",
@@ -48,7 +48,7 @@ def _ensure_conda_build():
                 ]
             )
             return subprocess.check_output(
-                [Config.get().conda_path, "run", "which", "conda-build"]
+                [PyProject.get().conda_path, "run", "which", "conda-build"]
             ).strip()
         else:
             raise typer.Abort()
@@ -56,8 +56,8 @@ def _ensure_conda_build():
 
 
 def _set_conda_build_path():
-    Config.get().senv.conda_build_path.mkdir(parents=True, exist_ok=True)
-    os.environ["CONDA_BLD_PATH"] = str(Config.get().senv.conda_build_path)
+    PyProject.get().senv.conda_build_path.mkdir(parents=True, exist_ok=True)
+    os.environ["CONDA_BLD_PATH"] = str(PyProject.get().senv.conda_build_path)
 
 
 @app.command(name="build")
@@ -67,8 +67,8 @@ def build_package(
 ):
     # todo add progress bar
     if build_system == BuildSystem.POETRY:
-        with cd(Config.get().config_path.parent):
-            subprocess.check_call([Config.get().poetry_path, "build"])
+        with cd(PyProject.get().config_path.parent):
+            subprocess.check_call([PyProject.get().poetry_path, "build"])
     elif build_system == BuildSystem.CONDA:
         conda_build_path = _ensure_conda_build()
         with tmp_env(), tmp_repo() as config:
@@ -80,7 +80,7 @@ def build_package(
             except NonExistentKey as e:
                 pass
             args = [conda_build_path, "--no-test"]
-            for c in Config.get().senv.conda_channels:
+            for c in PyProject.get().senv.conda_channels:
                 args += ["-c", c]
             meta_path = config.config_path.parent / "conda.recipe" / "meta.yaml"
             pyproject_to_recipe_yaml(
@@ -97,8 +97,8 @@ def build_package(
 
 
 def _publish_conda(username: str, password: str, repository_url: str):
-    conda_dist = Config.get().senv.conda_build_path
-    for tar_path in conda_dist.glob(f"*/{Config.get().package_name}*.tar.bz2"):
+    conda_dist = PyProject.get().senv.conda_build_path
+    for tar_path in conda_dist.glob(f"*/{PyProject.get().package_name}*.tar.bz2"):
         package = tar_path.name
         arch = tar_path.parent.name
         dest = f"{repository_url}/{arch}/{package}"
@@ -129,26 +129,26 @@ def publish_package(
     if build:
         build_package(build_system=build_system, python_version=python_version)
     if build_system == BuildSystem.POETRY:
-        with cd(Config.get().config_path.parent):
+        with cd(PyProject.get().config_path.parent):
             repository_url = (
-                repository_url or Config.get().senv.poetry_publish_repository
+                    repository_url or PyProject.get().senv.poetry_publish_repository
             )
             if repository_url is not None:
                 subprocess.check_call(
                     [
-                        Config.get().poetry_path,
+                        PyProject.get().poetry_path,
                         "config",
-                        f"repositories.senv_{Config.get().package_name}",
+                        f"repositories.senv_{PyProject.get().package_name}",
                         repository_url,
                     ]
                 )
-            args = [Config.get().poetry_path, "publish"]
+            args = [PyProject.get().poetry_path, "publish"]
             if username and password:
                 args += ["--username", username, "--password", password]
             subprocess.check_call(args)
     elif build_system == BuildSystem.CONDA:
-        with cd(Config.get().config_path.parent):
-            repository_url = repository_url or Config.get().senv.conda_publish_channel
+        with cd(PyProject.get().config_path.parent):
+            repository_url = repository_url or PyProject.get().senv.conda_publish_channel
             # todo, this is super specific to our case, we need to make this more generic
             if repository_url is None:
                 raise NotImplementedError(
@@ -178,12 +178,12 @@ def build_lock_paths(based_on_tested_lock_files_template, platforms):
 def _generate_app_lock_file_based_on_tested_lock_path(
     platform, lock_path, direct_dependencies_name, conda_channels
 ):
-    with cd(Config.get().senv.package_lock_dir), TemporaryDirectory() as tmp_dir:
+    with cd(PyProject.get().senv.package_lock_dir), TemporaryDirectory() as tmp_dir:
         lock_str = lock_path.read_text()
         lock_str = lock_str.split("@EXPLICIT", 1)[1].strip()
         # add the current package
         dependencies = {
-            Config.get().package_name: f"=={Config.get().version}",
+            PyProject.get().package_name: f"=={PyProject.get().version}",
         }
         for line in lock_str.splitlines(keepends=False):
             channel, dep = line.rsplit("/", 1)
@@ -197,7 +197,7 @@ def _generate_app_lock_file_based_on_tested_lock_path(
         )
         run_lock(
             [yaml_path],
-            conda_exe=Config.get().conda_path,
+            conda_exe=PyProject.get().conda_path,
             platforms=[platform],
         )
 
@@ -226,10 +226,10 @@ def lock_app(
     if build_system == BuildSystem.POETRY:
         raise NotImplementedError()
     elif build_system == BuildSystem.CONDA:
-        Config.get().senv.package_lock_dir.mkdir(exist_ok=True, parents=True)
+        PyProject.get().senv.package_lock_dir.mkdir(exist_ok=True, parents=True)
         if based_on_tested_lock_files_template is None:
             with cd(
-                Config.get().senv.package_lock_dir
+                PyProject.get().senv.package_lock_dir
             ), TemporaryDirectory() as tmp_dir:
                 env_app_yaml = pyproject_to_env_app_yaml(
                     channels=conda_channels,
@@ -237,7 +237,7 @@ def lock_app(
                 )
                 run_lock(
                     [env_app_yaml],
-                    conda_exe=Config.get().conda_path,
+                    conda_exe=PyProject.get().senv.conda_path,
                     platforms=platforms,
                 )
         else:
@@ -245,7 +245,7 @@ def lock_app(
                 based_on_tested_lock_files_template, platforms
             )
             direct_dependencies_name = {
-                normalize_pypi_name(d).lower() for d in Config.get().dependencies.keys()
+                normalize_pypi_name(d).lower() for d in PyProject.get().senv.dependencies.keys()
             }
             # always include python even if it is not in the dependencies
             direct_dependencies_name.add("python")

@@ -1,5 +1,6 @@
 import os
 import shutil
+from copy import deepcopy
 from enum import Enum
 from pathlib import Path
 from sys import platform
@@ -12,28 +13,20 @@ from pydantic import (
     BaseModel,
     Field,
     PrivateAttr,
+    root_validator,
     validator,
 )
 
-from senv.errors import SenvBadConfiguration, SenvNotSupportedPlatform
+from senv.errors import (
+    SenvBadConfiguration,
+    SenvNotSupportedPlatform,
+)
 from senv.log import log
 
 
 class BuildSystem(str, Enum):
     CONDA = "conda"
     POETRY = "poetry"
-
-
-class _PoetrySenvShared(BaseModel):
-    name: Optional[str] = Field(None)
-    version: Optional[str] = Field(None)
-    description: Optional[str] = Field(None)
-    authors: Optional[List[str]] = Field(None)
-    dependencies: Dict[str, Any] = Field(None)
-    dev_dependencies: Dict[str, Any] = Field(None, alias="dev-dependencies")
-    homepage: Optional[str] = Field(None)
-    documentation: Optional[str] = Field(None)
-    license: Optional[str] = Field(None)
 
 
 class _SenvVEnv(BaseModel):
@@ -44,9 +37,34 @@ class _SenvVEnv(BaseModel):
     venv_lock_dir: Path = Field(Path("venv_locks_dir"), alias="venv-lock-dir")
     name: Optional[str]
 
+    @property
+    def platform_conda_lock(self):
+        if platform == "linux" or platform == "linux2":
+            plat = "linux-64"
+        elif platform == "darwin":
+            plat = "osx-64"
+        elif platform == "win32":
+            plat = "win-64"
+        else:
+            raise SenvNotSupportedPlatform(f"Platform {platform} not supported")
+        return self.venv_lock_dir / f"conda-{plat}.lock"
 
-class _Senv(_PoetrySenvShared):
+
+class _Senv(BaseModel):
     venv: _SenvVEnv = Field(_SenvVEnv())
+    # poetry shared
+    name: Optional[str] = Field(None)
+    version: Optional[str] = Field(None)
+    description: Optional[str] = Field(None)
+    authors: Optional[List[str]] = Field(None)
+    dependencies: Dict[str, Any] = Field(None)
+    dev_dependencies: Dict[str, Any] = Field(None, alias="dev-dependencies")
+    homepage: Optional[str] = Field(None)
+    documentation: Optional[str] = Field(None)
+    license: str = Field("Proprietary")
+
+    # senv specific
+    # todo move some of this to a _Package model
     conda_path: Optional[Path] = Field(None, alias="conda-path", env="SENV_CONDA_PATH")
     conda_build_path: Path = Field(
         None, alias="conda-build-path", env="SENV_CONDA_BUILD_PATH"
@@ -79,17 +97,12 @@ class _Senv(_PoetrySenvShared):
         return p
 
 
-class _Poetry(_PoetrySenvShared):
-    pass
-
-
 class _Tool(BaseModel):
-    poetry: _Poetry = Field(_Poetry())
-    senv: _Senv = Field(_Senv())
+    senv: _Senv = ...
 
 
-class Config(BaseModel):
-    __instance: "Config"
+class PyProject(BaseModel):
+    __instance: "PyProject"
     tool: _Tool
     _config_path: Path = PrivateAttr(None)
 
@@ -102,24 +115,44 @@ class Config(BaseModel):
                 Path.home() / ".senv" / self.package_name / "dist_conda"
             )
 
+    @root_validator(pre=True)
+    def combine_senv_and_poetry(cls, values: Dict[str, Any]):
+        values_copy = deepcopy(values)
+        tool = values_copy.get("tool", {})
+        poetry = tool.get("poetry", {})
+        senv = tool.get("senv", {})
+        poetry.update(senv)
+        tool["senv"] = poetry
+        tool.pop("poetry", None)
+        return values_copy
+
+    @root_validator
+    def venv_name_defaults_to_package_name(cls, values: Dict[str, Any]):
+        if len(values) == 0:
+            # it is likely that another validation failed before this one
+            return values
+        tool: _Tool = values.get("tool")
+        tool.senv.venv.name = tool.senv.venv.name or tool.senv.name
+        return values
+
     @classmethod
-    def read_toml(cls, toml_path: Path) -> "Config":
-        cls.__instance = Config._build_from_toml(toml_path)
+    def read_toml(cls, toml_path: Path) -> "PyProject":
+        cls.__instance = PyProject._build_from_toml(toml_path)
         return cls.__instance
 
     @classmethod
-    def _build_from_toml(cls, toml_path: Path) -> "Config":
+    def _build_from_toml(cls, toml_path: Path) -> "PyProject":
         if not toml_path.exists():
             raise ValueError(f"{toml_path.absolute()} Not found")
         config_dict = toml.loads(toml_path.read_text())
-        instance = Config(**config_dict)
+        instance = PyProject(**config_dict)
         instance._config_path = toml_path.resolve().absolute()
 
         instance.validate_fields()
         return instance
 
     @classmethod
-    def get(cls):
+    def get(cls) -> "PyProject":
         return cls.__instance
 
     @property
@@ -127,52 +160,24 @@ class Config(BaseModel):
         return self._config_path
 
     @property
-    def senv(self):
+    def senv(self) -> _Senv:
         return self.tool.senv
 
     @property
-    def dependencies(self) -> Dict[str, Any]:
-        return self.senv.dependencies or self.tool.poetry.dependencies
-
-    @property
-    def dev_dependencies(self) -> Dict[str, Any]:
-        return self.senv.dev_dependencies or self.tool.poetry.dev_dependencies
+    def venv(self) -> _SenvVEnv:
+        return self.tool.senv.venv
 
     @property
     def version(self) -> str:
-        return self.senv.version or self.tool.poetry.version
-
-    @property
-    def description(self) -> str:
-        return self.senv.description or self.tool.poetry.description
-
-    @property
-    def documentation(self) -> str:
-        return self.senv.documentation or self.tool.poetry.documentation
+        return self.senv.version
 
     @property
     def package_name(self) -> str:
-        return self.senv.name or self.tool.poetry.name
-
-    @property
-    def homepage(self) -> str:
-        return self.senv.homepage or self.tool.poetry.homepage or "__NONE__"
-
-    @property
-    def authors(self) -> List[str]:
-        return self.senv.authors or self.tool.poetry.authors
-
-    @property
-    def license(self) -> str:
-        return self.senv.license or self.tool.poetry.license or "Proprietary"
+        return self.senv.name
 
     @property
     def python_version(self) -> str:
-        return self.dependencies.get("python", None)
-
-    @property
-    def venv_name(self) -> str:
-        return self.senv.venv.name or self.package_name
+        return self.senv.dependencies.get("python", None)
 
     @property
     def conda_path(self) -> Path:
@@ -181,18 +186,6 @@ class Config(BaseModel):
     @property
     def poetry_path(self) -> Path:
         return self.senv.poetry_path or shutil.which("poetry")
-
-    @property
-    def platform_conda_lock(self):
-        if platform == "linux" or platform == "linux2":
-            plat = "linux-64"
-        elif platform == "darwin":
-            plat = "osx-64"
-        elif platform == "win32":
-            plat = "win-64"
-        else:
-            raise SenvNotSupportedPlatform(f"Platform {platform} not supported")
-        return self.senv.venv.venv_lock_dir / f"conda-{plat}.lock"
 
     def validate_fields(self):
         if self.poetry_path is None:

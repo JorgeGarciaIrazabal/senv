@@ -2,7 +2,7 @@ from shutil import copyfile
 
 import pytest
 
-from senv.config import BuildSystem, Config
+from senv.pyproject import BuildSystem, PyProject
 from senv.main import app
 from senv.tests.conftest import STATIC_PATH
 
@@ -29,14 +29,14 @@ def test_set_config_add_value_to_pyproject(temp_pyproject, cli_runner):
         catch_exceptions=False,
     )
 
-    Config.read_toml(temp_pyproject)
-    assert Config.get().senv.venv.conda_lock_platforms == {"linux-64"}
+    PyProject.read_toml(temp_pyproject)
+    assert PyProject.get().senv.venv.conda_lock_platforms == {"linux-64"}
 
 
 def test_set_config_with_wrong_value_does_not_change_pyproject(
     temp_pyproject, cli_runner
 ):
-    original_config = Config.read_toml(temp_pyproject).dict()
+    original_config = PyProject.read_toml(temp_pyproject).dict()
     cli_runner.invoke(
         app,
         [
@@ -50,7 +50,7 @@ def test_set_config_with_wrong_value_does_not_change_pyproject(
         catch_exceptions=False,
     )
 
-    new_config = Config.read_toml(temp_pyproject).dict()
+    new_config = PyProject.read_toml(temp_pyproject).dict()
     assert new_config == original_config
 
 
@@ -65,4 +65,4 @@ def test_remove_config_key_removes_it_from_file(temp_pyproject, cli_runner):
         ["-f", str(temp_pyproject), "config", "remove", "venv.build-system"],
     )
 
-    assert Config.read_toml(temp_pyproject).senv.venv.build_system == BuildSystem.CONDA
+    assert PyProject.read_toml(temp_pyproject).senv.venv.build_system == BuildSystem.CONDA

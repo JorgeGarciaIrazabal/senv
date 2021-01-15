@@ -16,7 +16,7 @@ from conda_lock.src_parser.pyproject_toml import (
 )
 from pydantic import BaseModel, Field
 
-from senv.config import Config
+from senv.pyproject import PyProject
 from senv.errors import SenvInvalidPythonVersion
 from senv.log import log
 
@@ -107,9 +107,9 @@ def _parse_pyproject_toml(
     platform: str, include_dev_dependencies: bool
 ) -> LockSpecification:
     specs: List[str] = []
-    deps = Config.get().dependencies
+    deps = PyProject.get().dependencies
     if include_dev_dependencies:
-        deps.update(Config.get().dev_dependencies)
+        deps.update(PyProject.get().dev_dependencies)
 
     for depname, depattrs in deps.items():
         conda_dep_name = normalize_pypi_name(depname)
@@ -129,13 +129,13 @@ def _parse_pyproject_toml(
             specs.append(spec)
 
     return LockSpecification(
-        specs=specs, channels=Config.get().senv.conda_channels, platform=platform
+        specs=specs, channels=PyProject.get().senv.conda_channels, platform=platform
     )
 
 
 def _get_dependencies_from_pyproject(include_dev_dependencies):
     lock_spec = parse_poetry_pyproject_toml(
-        Config.get().config_path,
+        PyProject.get().config_path,
         platform="linux-64",
         include_dev_dependencies=include_dev_dependencies,
     )
@@ -165,17 +165,17 @@ def pyproject_to_meta(
     """
     dependencies = _get_dependencies_from_pyproject(include_dev_dependencies=False)
     python_version = _populate_python_version(python_version, dependencies)
-    if python_version != Config.get().python_version:
+    if python_version != PyProject.get().python_version:
         log.warning(
             "Python version in the pyproject.toml is different than the one provided"
         )
     if python_version is None:
         raise SenvInvalidPythonVersion(
-            f"No python version provided or defined in {Config.get().config_path}"
+            f"No python version provided or defined in {PyProject.get().config_path}"
         )
 
-    c = Config.get()
-    license = c.license if c.license != "Proprietary" else "INTERNAL"
+    c: PyProject = PyProject.get()
+    license = c.senv.license if c.senv.license != "Proprietary" else "INTERNAL"
 
     return CondaMeta(
         package=_Package(name=c.package_name, version=c.version),
@@ -183,21 +183,21 @@ def pyproject_to_meta(
         build=_Build(entry_points=[]),
         requirements=_Requirements(host=[python_version, "pip"], run=dependencies),
         about=_About(
-            home=c.homepage,
+            home=c.senv.homepage,
             license=license,
-            description=c.description,
-            doc_url=c.documentation,
+            description=c.senv.description,
+            doc_url=c.senv.documentation,
         ),
-        extra=_Extra(maintainers=c.authors),
+        extra=_Extra(maintainers=c.senv.authors),
     )
 
 
 def pyproject_to_conda_venv_dict() -> Dict:
-    channels = Config.get().senv.conda_channels
+    channels = PyProject.get().senv.conda_channels
     dependencies = _get_dependencies_from_pyproject(include_dev_dependencies=True)
 
     return dict(
-        name=Config.get().venv_name, channels=channels, dependencies=dependencies
+        name=PyProject.get().venv.name, channels=channels, dependencies=dependencies
     )
 
 
@@ -217,7 +217,7 @@ def pyproject_to_env_app_yaml(
     :param output: where to save the yaml
     :return: output
     """
-    c = Config.get()
+    c = PyProject.get()
     return create_env_yaml(
         name=app_name,
         channels=channels,
@@ -236,7 +236,7 @@ def create_env_yaml(
     if channels is None:
         channels = []
 
-    c = Config.get()
+    c = PyProject.get()
     yaml_dict = dict(
         name=name or c.package_name,
         channels=channels if channels is not None else c.senv.conda_channels,

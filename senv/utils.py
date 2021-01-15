@@ -5,7 +5,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Iterator
 
-from senv.config import Config
+from senv.pyproject import PyProject
 
 
 @contextlib.contextmanager
@@ -43,11 +43,11 @@ def tmp_env() -> None:
 
 
 @contextlib.contextmanager
-def tmp_repo() -> Iterator[Config]:
+def tmp_repo() -> Iterator[PyProject]:
     # this might not be very realistic for very big projects
-    original_config_path = Config.get().config_path
+    original_config_path = PyProject.get().config_path
     with TemporaryDirectory(prefix="senv_tmp_repo") as tmp_dir, cd(Path(tmp_dir)):
-        shutil.copytree(Config.get().config_path.parent, tmp_dir, dirs_exist_ok=True)
-        Config.read_toml(Path(tmp_dir, "pyproject.toml"))
-        yield Config.get()
-    Config.read_toml(original_config_path)
+        shutil.copytree(PyProject.get().config_path.parent, tmp_dir, dirs_exist_ok=True)
+        PyProject.read_toml(Path(tmp_dir, "pyproject.toml"))
+        yield PyProject.get()
+    PyProject.read_toml(original_config_path)
