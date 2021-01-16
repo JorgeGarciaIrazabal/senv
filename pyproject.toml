@@ -12,7 +12,7 @@ authors = ["Jorge <jorge.girazabal@gmail.com>"]
 senv = 'senv.main:app'
 
 [tool.poetry.dependencies]
-python = "^3.7.0"
+python = ">3.7.0, <3.10.0"
 ensureconda = "^1.4.0"
 appdirs = "^1.4.4"
 conda-lock = "^0.7.3"
@@ -22,7 +22,6 @@ poetry-core = "^1.0.0"
 poetry = "^1.1.4"
 
 [tool.poetry.dev-dependencies]
-pyinstaller = "^4.1"
 pytest = "^6.2.1"
 pytest-mock = "^3.4.0"
 black = "^20.8b1"

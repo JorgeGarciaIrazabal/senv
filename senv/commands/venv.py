@@ -9,8 +9,8 @@ import yaml
 from conda_lock.conda_lock import do_conda_install, run_lock
 
 from senv.command_lambdas import get_conda_platforms, get_default_build_system
-from senv.pyproject import BuildSystem, PyProject
 from senv.log import log
+from senv.pyproject import BuildSystem, PyProject
 from senv.pyproject_to_conda import pyproject_to_conda_venv_dict
 from senv.shell import SenvShell
 from senv.utils import cd
@@ -49,15 +49,15 @@ def sync(build_system: BuildSystem = typer.Option(get_default_build_system)):
         with cd(PyProject.get().config_path.parent):
             subprocess.check_call([PyProject.get().poetry_path, "sync"])
     elif build_system == BuildSystem.CONDA:
-        if not PyProject.get().platform_conda_lock.exists():
+        if not PyProject.get().venv.platform_conda_lock.exists():
             log.info("No lock file found, locking environment now")
             lock(build_system=build_system, platforms=get_conda_platforms())
-        log.info(f"Syncing environment {PyProject.get().venv_name}")
+        log.info(f"Syncing environment {PyProject.get().venv.name}")
         do_conda_install(
             conda=PyProject.get().conda_path,
-            name=PyProject.get().venv_name,
+            name=PyProject.get().venv.name,
             prefix=None,
-            file=str(PyProject.get().platform_conda_lock),
+            file=str(PyProject.get().venv.platform_conda_lock),
         )
     else:
         raise NotImplementedError()
@@ -71,7 +71,7 @@ def shell(build_system: BuildSystem = typer.Option(get_default_build_system)):
         with cd(PyProject.get().config_path.parent):
             SenvShell.get().activate(command="poetry shell")
     elif build_system == BuildSystem.CONDA:
-        SenvShell.get().activate(command=f"conda activate {PyProject.get().venv_name}")
+        SenvShell.get().activate(command=f"conda activate {PyProject.get().venv.name}")
     else:
         raise NotImplementedError()
     environ["PATH"] = ":".join(environ.get("PATH").split(":")[1:])
@@ -99,7 +99,7 @@ def lock(
                 yaml.safe_dump(env_dict, f)
                 run_lock(
                     [Path(f.name)],
-                    conda_exe=PyProject.get().conda_path,
+                    conda_exe=str(PyProject.get().conda_path.resolve()),
                     platforms=platforms,
                 )
         log.info("lock files updated, sync environment running `senv env sync`")

@@ -9,18 +9,9 @@ from typing import Any, Dict, List, Optional, Set
 import toml
 from conda_lock.conda_lock import DEFAULT_PLATFORMS
 from ensureconda import ensureconda
-from pydantic import (
-    BaseModel,
-    Field,
-    PrivateAttr,
-    root_validator,
-    validator,
-)
+from pydantic import BaseModel, Field, PrivateAttr, root_validator, validator
 
-from senv.errors import (
-    SenvBadConfiguration,
-    SenvNotSupportedPlatform,
-)
+from senv.errors import SenvBadConfiguration, SenvNotSupportedPlatform
 from senv.log import log
 
 
@@ -181,7 +172,9 @@ class PyProject(BaseModel):
 
     @property
     def conda_path(self) -> Path:
-        return self.senv.conda_path or ensureconda(no_install=True, micromamba=False)
+        return self.senv.conda_path or ensureconda(
+            no_install=True, micromamba=False, mamba=False
+        )
 
     @property
     def poetry_path(self) -> Path:

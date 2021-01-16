@@ -10,7 +10,6 @@ import yaml
 from conda_lock.src_parser import LockSpecification
 from conda_lock.src_parser.pyproject_toml import (
     normalize_pypi_name,
-    parse_poetry_pyproject_toml,
     poetry_version_to_conda_version,
     to_match_spec,
 )
@@ -107,9 +106,9 @@ def _parse_pyproject_toml(
     platform: str, include_dev_dependencies: bool
 ) -> LockSpecification:
     specs: List[str] = []
-    deps = PyProject.get().dependencies
+    deps = PyProject.get().senv.dependencies
     if include_dev_dependencies:
-        deps.update(PyProject.get().dev_dependencies)
+        deps.update(PyProject.get().senv.dev_dependencies)
 
     for depname, depattrs in deps.items():
         conda_dep_name = normalize_pypi_name(depname)
@@ -134,8 +133,7 @@ def _parse_pyproject_toml(
 
 
 def _get_dependencies_from_pyproject(include_dev_dependencies):
-    lock_spec = parse_poetry_pyproject_toml(
-        PyProject.get().config_path,
+    lock_spec = _parse_pyproject_toml(
         platform="linux-64",
         include_dev_dependencies=include_dev_dependencies,
     )
