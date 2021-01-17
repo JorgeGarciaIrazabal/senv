@@ -51,7 +51,7 @@ jobs:
           # eval "$(conda shell.bash hook)"
           conda activate senvx
           which python
-          pyinstaller main.py  -F -n senvx -c
+          pyinstaller main.py  -F -n senvx-${{ matrix.platform }} -c
 
       - name: Upload binaries to release
         uses: svenstaro/upload-release-action@v2
