@@ -1,11 +1,11 @@
 name: senvx
 
-on: [ push ]
+#on: [ push ]
 
-#on:
-#  push:
-#    tags:
-#      - '*'
+on:
+  push:
+    tags:
+      - '*'
 
 jobs:
   build_senvx:
@@ -53,13 +53,13 @@ jobs:
           which python
           pyinstaller main.py  -F -n senvx -c
 
-#      - name: Upload binaries to release
-#        uses: svenstaro/upload-release-action@v2
-#        with:
-#          repo_token: ${{ secrets.GITHUB_TOKEN }}
-#          file: senvx/dist/senvx*
-#          asset_name: senvx-${{ matrix.platform }}
-#          tag: ${{ github.ref }}
-#          overwrite: true
-#          file_glob: true
+      - name: Upload binaries to release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: senvx/dist/senvx*
+          asset_name: senvx-${{ matrix.platform }}
+          tag: ${{ github.ref }}
+          overwrite: true
+          file_glob: true
 
