@@ -1,17 +1,45 @@
 from os import chdir
 from pathlib import Path
 
+import click
 import typer
 
 from senv.commands import package, settings_writer, venv
 from senv.pyproject import PyProject
 
-app = typer.Typer()
-app.add_typer(venv.app, name="venv")
-app.add_typer(settings_writer.app, name="config")
-app.add_typer(settings_writer.app, name="c", help="'config' alias")
-app.add_typer(package.app, name="package")
-app.add_typer(package.app, name="p", help="'package' alias")
+
+class AliasedGroup(click.Group):
+    def get_command(self, ctx, cmd_name):
+        aliases_map = {
+            "c": "config",
+            "p": "package",
+        }
+        aliased_cmd_name = aliases_map.get(cmd_name, cmd_name)
+        rv = click.Group.get_command(self, ctx, aliased_cmd_name)
+        if rv is not None:
+            return rv
+        return None
+
+
+app = typer.Typer(cls=AliasedGroup)
+app.add_typer(
+    venv.app,
+    name="venv",
+    no_args_is_help=True,
+    help="Create and manage you virtual environment",
+)
+app.add_typer(
+    settings_writer.app,
+    name="config",
+    no_args_is_help=True,
+    help="{alias 'c'} Add or remove configuration to pyproject.yaml",
+)
+app.add_typer(
+    package.app,
+    name="package",
+    no_args_is_help=True,
+    help="{alias 'p'} build or publish your project",
+)
 
 
 @app.callback()
