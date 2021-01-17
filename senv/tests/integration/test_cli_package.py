@@ -39,6 +39,7 @@ def appdirs_venv_lock_path(temp_appdirs_pyproject) -> Path:
                 "--platforms",
                 "linux-64",
             ],
+            catch_exceptions=False,
         )
         assert result.exit_code == 0
         venv_lock_path = PyProject.get().senv.venv.venv_lock_dir / "conda-linux-64.lock"

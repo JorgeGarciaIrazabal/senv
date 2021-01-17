@@ -48,8 +48,10 @@ class _Senv(BaseModel):
     version: Optional[str] = Field(None)
     description: Optional[str] = Field(None)
     authors: Optional[List[str]] = Field(None)
-    dependencies: Dict[str, Any] = Field(None)
-    dev_dependencies: Dict[str, Any] = Field(None, alias="dev-dependencies")
+    dependencies: Dict[str, Any] = Field(default_factory=dict)
+    dev_dependencies: Dict[str, Any] = Field(
+        default_factory=dict, alias="dev-dependencies"
+    )
     homepage: Optional[str] = Field(None)
     documentation: Optional[str] = Field(None)
     license: str = Field("Proprietary")

@@ -57,10 +57,15 @@ def _install_from_lock_file_template(package_name, lock_url: str) -> None:
         # todo get entrypoints from lockfile
 
 
-@app.command()
+@app.command(no_args_is_help=True)
 def install(
-    package_name: str = typer.Argument(...),
-    lock_url_template: Optional[str] = typer.Option(..., "-l"),
+    package_name: Optional[str] = typer.Argument(...),
+    lock_url_template: Optional[str] = typer.Option(
+        None,
+        "-l",
+        "--lock-url-template",
+        help='lock file url template where "{platform}" will be replace with the current platform ',
+    ),
 ):
     # if not any([package_name, lock_url_template]):
     #     raise typer.Abort("Either package_name or lock_url_template have to be provided")
