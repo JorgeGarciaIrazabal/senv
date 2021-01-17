@@ -5,6 +5,7 @@ from contextlib import contextmanager
 from os import environ
 
 import pexpect
+import typer
 from clikit.utils.terminal import Terminal
 from poetry.utils.shell import Shell
 
@@ -27,6 +28,7 @@ class SenvShell(Shell):
     def activate(self, command):
         if environ.get("SENV_ACTIVE", "0") == "1":
             log.info("environment already active")
+            raise typer.Abort("environment already activate")
         environ["SENV_ACTIVE"] = "1"
         terminal = Terminal()
         with temp_environ():

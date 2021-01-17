@@ -6,7 +6,7 @@ from typing import List
 
 import typer
 import yaml
-from conda_lock.conda_lock import do_conda_install, run_lock
+from conda_lock.conda_lock import run_lock
 
 from senv.command_lambdas import get_conda_platforms, get_default_build_system
 from senv.log import log
@@ -53,12 +53,25 @@ def sync(build_system: BuildSystem = typer.Option(get_default_build_system)):
             log.info("No lock file found, locking environment now")
             lock(build_system=build_system, platforms=get_conda_platforms())
         log.info(f"Syncing environment {PyProject.get().venv.name}")
-        do_conda_install(
-            conda=PyProject.get().conda_path,
-            name=PyProject.get().venv.name,
-            prefix=None,
-            file=str(PyProject.get().venv.platform_conda_lock),
+        result = subprocess.run(
+            [
+                str(PyProject.get().conda_path),
+                "create",
+                "--file",
+                str(PyProject.get().venv.platform_conda_lock),
+                "--yes",
+                "--name",
+                PyProject.get().venv.name,
+            ]
         )
+        if result.returncode != 0:
+            raise typer.Abort("Failed syncing environment")
+        # do_conda_install(
+        #     conda=PyProject.get().conda_path,
+        #     name=PyProject.get().venv.name,
+        #     prefix=None,
+        #     file=str(PyProject.get().venv.platform_conda_lock),
+        # )
     else:
         raise NotImplementedError()
 
