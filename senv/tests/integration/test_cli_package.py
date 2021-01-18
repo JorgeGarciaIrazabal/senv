@@ -3,6 +3,7 @@ from pathlib import Path
 from pytest import fixture
 from typer.testing import CliRunner
 
+from senv.conda_publish import LockFileMetaData
 from senv.errors import SenvNotAllRequiredLockFiles
 from senv.main import app
 from senv.pyproject import PyProject
@@ -43,7 +44,7 @@ def appdirs_venv_lock_path(temp_appdirs_pyproject) -> Path:
         )
         assert result.exit_code == 0
         venv_lock_path = PyProject.get().senv.venv.venv_lock_dir / "conda-linux-64.lock"
-        return venv_lock_path
+        yield venv_lock_path
 
 
 def test_build_conda_installs_conda_build_if_necessary(
@@ -105,6 +106,26 @@ def test_lock_appdirs_simple_does_not_include_fake_dependencies(
         lock_path = PyProject.get().senv.package_lock_dir / "conda-linux-64.lock"
         assert lock_path.exists()
         assert "click" not in lock_path.read_text()
+
+
+def test_lock_appdirs_simple_includes_metadata(temp_appdirs_pyproject, cli_runner):
+    with cd(temp_appdirs_pyproject.parent):
+        cli_runner.invoke(
+            app,
+            [
+                "-f",
+                str(temp_appdirs_pyproject),
+                "package",
+                "lock",
+                "--platforms",
+                "osx-64",
+            ],
+            catch_exceptions=False,
+        )
+        lock_path = PyProject.get().senv.package_lock_dir / "conda-osx-64.lock"
+        metadata = LockFileMetaData.from_lock_path(lock_path)
+        assert metadata.package_name == "appdirs"
+        assert metadata.entry_points == []
 
 
 def test_lock_based_on_tested_includes_pinned_dependencies(

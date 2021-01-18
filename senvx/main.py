@@ -1,25 +1,18 @@
+import os
 import subprocess
 from pathlib import Path
 from sys import platform
 from tempfile import TemporaryDirectory
 from typing import Optional
 
-import appdirs
 import filelock
 import requests
 import typer
 from ensureconda import ensureconda
-from pydantic import BaseSettings, Field
+
+from senvx.models import LockFileMetaData, SenvxMalformedAppLockFile, Settings
 
 app = typer.Typer(no_args_is_help=True, add_completion=False)
-
-
-class Settings(BaseSettings):
-    INSTALLATION_PATH: Path = Field(Path(appdirs.user_data_dir("senvx")))
-    BIN_DIR: Path = Field(Path.home() / ".local" / "bin")
-
-    class Config:
-        env_prefix = "SENVX_"
 
 
 def current_platform() -> str:
@@ -33,13 +26,35 @@ def current_platform() -> str:
         raise NotImplementedError(f"Platform {platform} not supported")
 
 
-def _install_from_lock_file_template(package_name, lock_url: str) -> None:
+def _install_from_lock_file_template(
+    package_name: Optional[str], lock_url: str
+) -> None:
     settings = Settings()
     with TemporaryDirectory(prefix="senvx-") as tmp_dir:
         lock_path = Path(tmp_dir, "lock_file.lock")
         lock_path.write_bytes(requests.get(lock_url, allow_redirects=True).content)
+        try:
+            metadata = LockFileMetaData.from_lock_path(lock_path)
+            metadata.package_name = package_name or metadata.package_name
+        except SenvxMalformedAppLockFile:
+            if package_name is None:
+                typer.Abort("No package_name or metadata found in lockfile")
+            metadata = LockFileMetaData(package_name=package_name)
+
+        entry_points_conflicts = []
+        for entrypoint in metadata.entry_points:
+            if Path(settings.BIN_DIR / entrypoint).exists():
+                entry_points_conflicts.append(entrypoint)
+        if len(entry_points_conflicts) > 0:
+            if not typer.confirm(
+                f"Entry points {entry_points_conflicts} "
+                f"already exists in {settings.BIN_DIR.resolve()}.\n"
+                "Do you want to overwrite them?"
+            ):
+                typer.Abort()
+
         conda_exe = ensureconda(no_install=True, micromamba=False, mamba=False)
-        prefix = settings.INSTALLATION_PATH.resolve() / package_name
+        prefix = settings.INSTALLATION_PATH.resolve() / metadata.package_name
         subprocess.check_call(
             [
                 conda_exe,
@@ -52,9 +67,13 @@ def _install_from_lock_file_template(package_name, lock_url: str) -> None:
             ]
         )
 
-        typer.echo(f"Installed {package_name} in {prefix.resolve()}")
+        typer.echo(f"Installed {metadata.package_name } in {prefix.resolve()}")
 
-        # todo get entrypoints from lockfile
+        for entrypoint in metadata.entry_points:
+            dst = Path(settings.BIN_DIR / entrypoint)
+            src = prefix / entrypoint
+            dst.unlink(missing_ok=True)
+            os.symlink(src, dst)
 
 
 @app.command(no_args_is_help=True)
@@ -71,8 +90,8 @@ def install(
     #     raise typer.Abort("Either package_name or lock_url_template have to be provided")
     # if all([package_name, lock_url_template]):
     #     raise typer.Abort("Only one of package or lock_url_template can be provided")
-
-    app_path = Path(appdirs.user_data_dir("senvx"))
+    settings = Settings()
+    app_path = Path(settings.INSTALLATION_PATH)
     app_path.mkdir(parents=True, exist_ok=True)
     with filelock.FileLock(str(app_path / "installing.lock"), timeout=60 * 5):
         if lock_url_template:

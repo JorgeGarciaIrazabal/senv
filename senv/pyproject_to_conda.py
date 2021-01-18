@@ -174,11 +174,12 @@ def pyproject_to_meta(
 
     c: PyProject = PyProject.get()
     license = c.senv.license if c.senv.license != "Proprietary" else "INTERNAL"
+    entry_points = [f"{name} = {module}" for name, module in c.senv.scripts.items()]
 
     return CondaMeta(
         package=_Package(name=c.package_name, version=c.version),
         source=_Source(path=c.config_path.parent.resolve()),
-        build=_Build(entry_points=[]),
+        build=_Build(entry_points=entry_points),
         requirements=_Requirements(host=[python_version, "pip"], run=dependencies),
         about=_About(
             home=c.senv.homepage,

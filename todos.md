@@ -7,3 +7,4 @@
     - install poetry
 - provisioner
     - create executable provisioners for all platforms
+- consider modify conda lock files, so we only have one lock file for all platforms

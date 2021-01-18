@@ -52,6 +52,7 @@ class _Senv(BaseModel):
     dev_dependencies: Dict[str, Any] = Field(
         default_factory=dict, alias="dev-dependencies"
     )
+    scripts: Dict[str, str] = Field(default_factory=dict)
     homepage: Optional[str] = Field(None)
     documentation: Optional[str] = Field(None)
     license: str = Field("Proprietary")
