@@ -5,8 +5,8 @@ import typer
 from poetry.core.pyproject import PyProjectTOML
 from pydantic import ValidationError
 
-from senv.pyproject import PyProject
 from senv.log import log
+from senv.pyproject import PyProject
 
 
 class AllowedConfigKeys(str, Enum):
@@ -27,7 +27,7 @@ CONFIG_KEYS_MULTIPLE = {
     AllowedConfigKeys.CONDA_PLATFORMS,
 }
 
-app = typer.Typer()
+app = typer.Typer(add_completion=False)
 
 
 def _validate_toml(toml):

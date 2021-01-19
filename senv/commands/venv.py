@@ -15,15 +15,27 @@ from senv.pyproject_to_conda import pyproject_to_conda_venv_dict
 from senv.shell import SenvShell
 from senv.utils import cd
 
-app = typer.Typer()
+app = typer.Typer(add_completion=False)
 
 
-@app.command()
+@app.command(
+    short_help="Install the dependencies and the dev-dependencies in a virtual environment",
+    help="""
+    Installs both, the dependencies and the dev-dependencies in a a virtual environment. 
+    This venv van be activated with `senv venv shell`.
+    You can configure where the lock files will be stored with the key `tools.senv.venv.venv-lock-dir
+    """,
+)
 def install(build_system: BuildSystem = typer.Option(get_default_build_system)):
     sync(build_system=build_system)
 
 
-@app.command()
+@app.command(
+    short_help="Updates the lock files and install the dependencies in your venv",
+    help="""
+    Updates the lock files and install the dependencies in your venv based on the constrains defined in the pyproject.toml
+    """,
+)
 def update(
     build_system: BuildSystem = typer.Option(get_default_build_system),
     platforms: List[str] = typer.Option(
@@ -43,11 +55,18 @@ def update(
         raise NotImplementedError()
 
 
-@app.command()
+@app.command(
+    short_help="Syncs the current venv with the lock files",
+    help="""
+    Syncs the current venv with the lock files. Installs the missing dependencies and removes the ones that are not in the lock file
+    """,
+)
 def sync(build_system: BuildSystem = typer.Option(get_default_build_system)):
     if build_system == BuildSystem.POETRY:
         with cd(PyProject.get().config_path.parent):
-            subprocess.check_call([PyProject.get().poetry_path, "sync"])
+            subprocess.check_call(
+                [PyProject.get().poetry_path, "install", "--remove-untracked"]
+            )
     elif build_system == BuildSystem.CONDA:
         if not PyProject.get().venv.platform_conda_lock.exists():
             log.info("No lock file found, locking environment now")
@@ -66,14 +85,10 @@ def sync(build_system: BuildSystem = typer.Option(get_default_build_system)):
         )
         if result.returncode != 0:
             raise typer.Abort("Failed syncing environment")
-        # do_conda_install(
-        #     conda=PyProject.get().conda_path,
-        #     name=PyProject.get().venv.name,
-        #     prefix=None,
-        #     file=str(PyProject.get().venv.platform_conda_lock),
-        # )
     else:
         raise NotImplementedError()
+
+    typer.echo("Activate the environment with `senv venv shell`")
 
 
 @app.command()
@@ -115,6 +130,6 @@ def lock(
                     conda_exe=str(PyProject.get().conda_path.resolve()),
                     platforms=platforms,
                 )
-        log.info("lock files updated, sync environment running `senv env sync`")
+        log.info("lock files updated, sync environment running `senv venv sync`")
     else:
         raise NotImplementedError()

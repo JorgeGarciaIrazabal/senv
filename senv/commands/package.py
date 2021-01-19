@@ -24,7 +24,7 @@ from senv.pyproject import BuildSystem, PyProject
 from senv.pyproject_to_conda import pyproject_to_env_app_yaml, pyproject_to_recipe_yaml
 from senv.utils import cd, tmp_env, tmp_repo
 
-app = typer.Typer()
+app = typer.Typer(add_completion=False)
 
 
 @app.command(name="build")

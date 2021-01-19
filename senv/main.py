@@ -48,10 +48,22 @@ def users_callback(
         Path(".") / "pyproject.toml", "-f", "--pyproject-file", exists=True
     )
 ):
-    typer.echo(f"{pyproject_file}")
     PyProject.read_toml(pyproject_file)
     chdir(PyProject.get().config_path.parent)
 
+
+_venv_command = typer.main.get_command(venv.app)
+_venv_command.name = "senv venv"
+venv_command = _venv_command
+
+_config_command = typer.main.get_command(settings_writer.app)
+_config_command.name = "senv config"
+config_command = _config_command
+
+
+_package_command = typer.main.get_command(package.app)
+_package_command.name = "senv package"
+package_command = _package_command
 
 if __name__ == "__main__":
     app()
