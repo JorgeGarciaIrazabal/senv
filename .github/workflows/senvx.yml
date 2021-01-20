@@ -24,7 +24,7 @@ jobs:
           auto-activate-base: true
           python-version: 3.7
           activate-environment: "test"
-      - name: install poetry
+      - name: install senv
         shell: bash -l {0}
         run: |
           which python
@@ -38,7 +38,7 @@ jobs:
         run: |
           cd senvx
           # remove
-          pip install ../dist/senv-0.0.0a1.tar.gz
+          pip install ../dist/senv-0.0.0a2.tar.gz
           senv venv install
 
       - name: create installer
