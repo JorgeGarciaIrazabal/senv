@@ -1,0 +1,2 @@
+mkdocs-material==5.4.0
+mkdocs-click==0.2.0
