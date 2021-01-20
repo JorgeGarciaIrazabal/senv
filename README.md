@@ -2,6 +2,8 @@
 
 **Senv (Super Environment)** is a tool to simplify **dependency management**, **packaging**, **distribution**, **testing**, and **consumption** of your applications and libraries.
 
+Full documentation [here](https://jorgegarciairazabal.github.io/senv/)
+
 ## Why Not Poetry?
 Poetry and pyproject are amazing, it seems to cover most of the cases, but we think 
 there are few reasons why **senv** could improve your development experience.
