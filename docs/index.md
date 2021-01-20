@@ -117,4 +117,4 @@ activate your environment running `senv venv shell`
 
 </div>
 
-Learn more about the [venv](./venv.md), [config](), and [package]() commands
+Learn more about the [venv](./venv.md), [config](./config.md), and [package](./package.md) commands

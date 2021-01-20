@@ -4,7 +4,7 @@
     - set defaults from cli
     - publish conda tar files or wheels
     - install conda
-    - install poetry
 - provisioner
     - create executable provisioners for all platforms
 - consider modify conda lock files, so we only have one lock file for all platforms
+- progressbars everywhere

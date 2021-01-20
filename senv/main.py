@@ -52,6 +52,8 @@ def users_callback(
     chdir(PyProject.get().config_path.parent)
 
 
+# renaming commands for documentation, this will not be used in production
+
 _venv_command = typer.main.get_command(venv.app)
 _venv_command.name = "senv venv"
 venv_command = _venv_command
