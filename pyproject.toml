@@ -7,6 +7,9 @@ name = "senv"
 version = "0.0.0a1"
 description = "Senv (Super Environment) is a tool to simplify dependency management, packaging, distribution, and consumption of your applications and libraries."
 authors = ["Jorge <jorge.girazabal@gmail.com>"]
+license = "MIT"
+readme = "README.md"
+homepage = "https://JorgeGarciaIrazabal.github.io/senv"
 
 [tool.poetry.scripts]
 senv = 'senv.main:app'
