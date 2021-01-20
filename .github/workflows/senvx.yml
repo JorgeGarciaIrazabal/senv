@@ -28,17 +28,12 @@ jobs:
         shell: bash -l {0}
         run: |
           which python
-          conda install poetry
-      - name: Build senv
-        shell: bash -l {0}
-        run: |
-          poetry build
+          pip install senv
       - name: install senvx virtual env
         shell: bash -l {0}
         run: |
           cd senvx
           # remove
-          pip install ../dist/senv-0.0.0a2.tar.gz
           senv venv install
 
       - name: create installer
