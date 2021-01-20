@@ -1,0 +1,46 @@
+[build-system]
+requires = ["poetry>=0.12", ]
+build-backend = "poetry.masonry.api"
+
+[tool.poetry]
+name = "senv"
+version = "0.0.0a2"
+description = "Senv (Super Environment) is a tool to simplify dependency management, packaging, distribution, and consumption of your applications and libraries."
+authors = ["Jorge <jorge.girazabal@gmail.com>"]
+license = "MIT"
+readme = "README.md"
+homepage = "https://JorgeGarciaIrazabal.github.io/senv"
+
+[tool.poetry.scripts]
+senv = 'senv.main:app'
+
+[tool.poetry.dependencies]
+python = ">3.7.0, <3.10.0"
+ensureconda = "^1.4.0"
+appdirs = "^1.4.4"
+conda-lock = "^0.7.3"
+typer = "^0.3.2"
+pydantic = "^1.7.3"
+poetry-core = "^1.0.0"
+poetry = "^1.1.4"
+
+[tool.poetry.dev-dependencies]
+pytest = "^6.2.1"
+pytest-mock = "^3.4.0"
+black = "^20.8b1"
+pytest-cov = "^2.10.1"
+pytest-xdist = "^2.2.0"
+mkdocs = "^1.1.2"
+mkdocs-material = "^5.4.0"
+mkdocs-click = "^0.2.0"
+
+
+[tool.senv]
+venv-name = "senv_test_name"
+conda-channels = [
+    "conda-forge",
+    "defaults"
+]
+poetry-path = "/home/jirazabal/.local/bin/poetry"
+conda-path = "/home/jirazabal/miniconda3/bin/conda"
+build-system = "poetry"

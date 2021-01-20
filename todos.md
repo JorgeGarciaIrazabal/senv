@@ -1,0 +1,10 @@
+- conda-poetry
+    - poetry to conda dependency names keymap
+- cli
+    - set defaults from cli
+    - publish conda tar files or wheels
+    - install conda
+- provisioner
+    - create executable provisioners for all platforms
+- consider modify conda lock files, so we only have one lock file for all platforms
+- progressbars everywhere

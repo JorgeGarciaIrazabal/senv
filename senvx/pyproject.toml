@@ -1,0 +1,29 @@
+[build-system]
+requires = ["poetry>=0.12"]
+build-backend = "poetry.masonry.api"
+
+[tool.senv]
+name = "senvx"
+version = "0.0.0a2"
+description = ""
+authors = ["Jorge <jorge.girazabal@gmail.com>"]
+conda-channels = [
+    "conda-forge",
+    "defaults"
+]
+build-system = "conda"
+
+
+[tool.senv.scripts]
+senvx = 'senvx.main:app'
+
+[tool.senv.dependencies]
+python = ">3.7.0, <3.10.0"
+ensureconda = "^1.4.0"
+appdirs = "^1.4.4"
+typer = "^0.3.2"
+pydantic = "^1.7.3"
+
+[tool.senv.dev-dependencies]
+pyinstaller = "^4.1"
+

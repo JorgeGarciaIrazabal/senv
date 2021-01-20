@@ -1,33 +1,17 @@
-# senv (Super Environment)
+# Welcome to Senv
 
-**Senv (Super Environment)** is a tool to simplify **dependency management**, **packaging**, **distribution**, **testing**, and **consumption** of your applications and libraries.
 
-Full documentation [here](https://jorgegarciairazabal.github.io/senv/)
+**Senv (Super Environment)** is a tool to simplify **dependency management**, **packaging**, **distribution**, and **consumption** of your applications and libraries.
 
-## Why Not Poetry?
-Poetry and pyproject are amazing, it seems to cover most of the cases, but we think 
-there are few reasons why **senv** could improve your development experience.
+It tries to solve most of the problems solved by the amazing application [Poetry](https://python-poetry.org/),
+but adding important features for modern packaging and distribution needs. Some of these needs are:
 
-1. **Unify the package and environment definition**
-   
-   Poetry does a great job unifying the definition of your package release
-   and the dev environment, but it doesn't integrate very well with conda.
-   Senv also allows you to define you package and dev environment
-   with pyproject.toml using the conda solver (if desired)
-
-2. **One configuration/one cli -> multiple build systems**
-   
-   With senv, you can create dev environments, build, and publish your packages with poetry and/or conda.
-
-   It also integrates with conda-lock to maintain the dev experience with the same cli. (senv likes lock files)
-
-3. **New ways to consume your package**
-
-   New tools like pipx and condax expanded how people consume python packages. As they both create isolated environments, 
-   your clis can now be published with a pinned set of dependencies preventing unexpected problems with 
-   untested dependency versions. Using `senv package publish --locked` will publish your package 
-   with the exact dependencies that was tested, and it is smart enough to exclude the `dev-dependencies`
-
+- Support for building **conda or poetry** environments with the same `pyproject.toml` file
+- Publish libraries in pypi and/or conda repositories with just one command 
+- Distribution of locked applications (Applications like [pipx](https://github.com/pipxproject/pipx) and [condax](https://pypi.org/project/condax/) will benefit from it)
+- Totally hermetic appp installation process. 
+  Use **senvx** (standalone executable) to install your application in systems where you don't have any control (no python, no docker, etc),
+  **senvx** will temporarily install all required dependencies needed and create a hermetic working environment for your application.
 
 ## Installation
 <div class="termy">
@@ -56,7 +40,7 @@ Successfully installed senv
 
 
 ## Getting started
-start creating a pyproject.toml file for your project.
+start creating a pyproject.toml file for your project. 
 The `init` command will ask you simple questions about your project to get you starting
 
 <div class="termy">
@@ -112,9 +96,9 @@ build-system = "conda"
 
 Now we are ready to create our first dev environment. Using the conda build-system, it will generate the following lock files:
 
-- conda-linux-64.lock
-- conda-osx-64.lock
-- conda-win-64.lock
+ - conda-linux-64.lock
+ - conda-osx-64.lock
+ - conda-win-64.lock
 
 You can define this along with the conda channels and other things in the pyproject.toml files (You can find all the options in [pyproject](./pyproject.md#configuration) )
 
@@ -133,4 +117,4 @@ activate your environment running `senv venv shell`
 
 </div>
 
-Learn more about the [venv](docs/venv.md), [config](docs/config.md), and [package](docs/package.md) commands
+Learn more about the [venv](./venv.md), [config](./config.md), and [package](./package.md) commands
