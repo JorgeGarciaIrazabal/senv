@@ -4,7 +4,7 @@ build-backend = "poetry.masonry.api"
 
 [tool.senv]
 name = "senvx"
-version = "0.1.0"
+version = "0.0.0a1"
 description = ""
 authors = ["Jorge <jorge.girazabal@gmail.com>"]
 conda-channels = [

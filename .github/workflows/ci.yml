@@ -48,3 +48,8 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           files: pytest.xml
 
+      - name: Publish to pypi
+        if: startsWith(github.ref, 'refs/tags/')
+        run:
+          poetry publish -u ${{ secrets.PYPI_USERNAME }} -p ${{ secrets.PYPI_PASSWORD }} --build
+
