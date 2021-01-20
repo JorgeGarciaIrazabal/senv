@@ -1,7 +1,4 @@
 name: senvx
-
-#on: [ push ]
-
 on:
   push:
     tags:

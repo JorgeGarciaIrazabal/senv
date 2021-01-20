@@ -114,7 +114,7 @@ To just update the lock files without updating your environment, use `lock`
 <div class="termy">
 
 ```console
-# you can also include mulple --build-system like in the command `update`
+// you can also include mulple --build-system like in the command `update`
 $ senv venv lock
 generating lock file
 ---> 100%

@@ -28,7 +28,7 @@ nav:
     - Venv: 'venv.md'
     - Package: 'package.md'
     - Config: 'config.md'
-  - Pyproject.toml: 'pyproject.ml'
+  - Pyproject.toml: 'pyproject.md'
 
 
 markdown_extensions:
