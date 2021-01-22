@@ -16,18 +16,20 @@ def temp_pyproject(tmp_path):
 
 
 def test_set_config_add_value_to_pyproject(temp_pyproject, cli_runner):
-    cli_runner.invoke(
+    result = cli_runner.invoke(
         app,
         [
+            "config",
             "-f",
             str(temp_pyproject),
-            "config",
             "set",
             "venv.conda-lock-platforms",
             "linux-64",
         ],
         catch_exceptions=False,
     )
+
+    assert result.exit_code == 0
 
     PyProject.read_toml(temp_pyproject)
     assert PyProject.get().senv.venv.conda_lock_platforms == {"linux-64"}
@@ -57,12 +59,25 @@ def test_set_config_with_wrong_value_does_not_change_pyproject(
 def test_remove_config_key_removes_it_from_file(temp_pyproject, cli_runner):
     cli_runner.invoke(
         app,
-        ["-f", str(temp_pyproject), "config", "set", "venv.build-system", "poetry"],
+        [
+            "config",
+            "set",
+            "venv.build-system",
+            "poetry",
+            "-f",
+            str(temp_pyproject),
+        ],
     )
 
     cli_runner.invoke(
         app,
-        ["-f", str(temp_pyproject), "config", "remove", "venv.build-system"],
+        [
+            "config",
+            "remove",
+            "venv.build-system",
+            "-f",
+            str(temp_pyproject),
+        ],
     )
 
     assert (

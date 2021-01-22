@@ -5,13 +5,7 @@ from typing import List
 import appdirs
 from pydantic import BaseModel, BaseSettings, Field
 
-
-class SenvxError(Exception):
-    pass
-
-
-class SenvxMalformedAppLockFile(SenvxError):
-    pass
+from senvx.errors import SenvxMalformedAppLockFile
 
 
 class LockFileMetaData(BaseModel):
@@ -32,6 +26,23 @@ class LockFileMetaData(BaseModel):
             [l.lstrip("#").strip() for l in commented_metadata.splitlines()]
         ).strip()
         return LockFileMetaData.parse_raw(metadata_json)
+
+    def add_metadata_to_lockfile(self, lockfile: Path):
+        lock_content = lockfile.read_text()
+        if "@EXPLICIT" not in lock_content:
+            raise SenvxMalformedAppLockFile("No @EXPLICIT found in lock file")
+        lock_header, tars = lock_content.split("@EXPLICIT", 1)
+        meta_json = (
+            "\n".join([f"# {l}" for l in self.json(indent=2).splitlines()]) + "\n"
+        )
+        lockfile.write_text(
+            lock_header
+            + "# @METADATA_INIT\n"
+            + meta_json
+            + "# @METADATA_END\n"
+            + "@EXPLICIT\n"
+            + tars
+        )
 
 
 class Settings(BaseSettings):

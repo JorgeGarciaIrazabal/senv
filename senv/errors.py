@@ -33,7 +33,3 @@ class SenvNotAllRequiredLockFiles(SenvError):
     def __str__(self):
         files = "\n-".join([str(f.resolve()) for f in self.missing_lock_files])
         return f"Missing files: \n-{files}"
-
-
-class SenvMalformedAppLockFile(SenvError):
-    pass

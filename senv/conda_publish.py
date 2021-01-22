@@ -1,6 +1,5 @@
 import os
 import subprocess
-from datetime import datetime
 from pathlib import Path
 from shutil import which
 from tempfile import TemporaryDirectory
@@ -10,25 +9,14 @@ import requests
 import typer
 from conda_lock.conda_lock import run_lock
 from conda_lock.src_parser.pyproject_toml import normalize_pypi_name
-from pydantic import BaseModel, Field
 
-from senv.errors import SenvError, SenvMalformedAppLockFile, SenvNotAllRequiredLockFiles
+from senv.errors import SenvError, SenvNotAllRequiredLockFiles
 from senv.log import log
 from senv.pyproject import PyProject
 from senv.pyproject_to_conda import create_env_yaml
 from senv.utils import cd
-
-
-# todo use senvx LockFileMetaData instead once we release the first version
-class LockFileMetaData(BaseModel):
-    package_name: str
-    version: str
-    entry_points: List[str] = Field(default_factory=list)
-    create_at: datetime = Field(default_factory=datetime.utcnow)
-
-    @staticmethod
-    def from_lock_path(lockfile: Path) -> "LockFileMetaData":
-        return _read_metadata_from_lockfile(lockfile=lockfile)
+from senvx.errors import SenvxMalformedAppLockFile
+from senvx.models import LockFileMetaData
 
 
 def ensure_conda_build():
@@ -149,19 +137,22 @@ def lock_file_with_metadata(
     )
     for platform in platforms:
         path = Path(f"conda-{platform}.lock")
-        _add_app_lockfile_metadata(path)
+        c = PyProject.get()
+        LockFileMetaData(
+            package_name=c.package_name,
+            entry_points=list(c.senv.scripts.keys()),
+        ).add_metadata_to_lockfile(path)
 
 
 def _add_app_lockfile_metadata(lockfile: Path):
     lock_content = lockfile.read_text()
     if "@EXPLICIT" not in lock_content:
-        raise SenvMalformedAppLockFile("No @EXPLICIT found in lock file")
+        raise SenvxMalformedAppLockFile("No @EXPLICIT found in lock file")
     lock_header, tars = lock_content.split("@EXPLICIT", 1)
     c = PyProject.get()
     metadata = LockFileMetaData(
         package_name=c.package_name,
         entry_points=list(c.senv.scripts.keys()),
-        version=c.senv.version,
     )
     meta_json = (
         "\n".join([f"# {l}" for l in metadata.json(indent=2).splitlines()]) + "\n"
@@ -174,17 +165,3 @@ def _add_app_lockfile_metadata(lockfile: Path):
         + "@EXPLICIT\n"
         + tars
     )
-
-
-def _read_metadata_from_lockfile(lockfile: Path) -> LockFileMetaData:
-    lock_content = lockfile.read_text()
-    if "@METADATA_INIT" not in lock_content or "@METADATA_END" not in lock_content:
-        raise SenvMalformedAppLockFile("No @METADATA keys required")
-
-    commented_metadata = lock_content.split("@METADATA_INIT", 1)[1].rsplit(
-        "@METADATA_END"
-    )[0]
-    metadata_json = "\n".join(
-        [l.lstrip("#").strip() for l in commented_metadata.splitlines()]
-    ).strip()
-    return LockFileMetaData.parse_raw(metadata_json)

@@ -53,7 +53,7 @@ def test_build_conda_installs_conda_build_if_necessary(
     with cd(temp_small_conda_pyproject.parent):
         result = cli_runner.invoke(
             app,
-            ["-f", str(temp_small_conda_pyproject), "package", "build"],
+            ["package", "build", "-f", str(temp_small_conda_pyproject)],
             input="y",
             catch_exceptions=False,
         )
@@ -66,7 +66,12 @@ def test_build_simple_pyproject_with_conda_even_with_poetry_build_system_in_pypr
     with cd(temp_simple_pyproject.parent):
         result = cli_runner.invoke(
             app,
-            ["-f", str(temp_simple_pyproject), "package", "build"],
+            [
+                "package",
+                "build",
+                "-f",
+                str(temp_simple_pyproject),
+            ],
             input="y",
             catch_exceptions=False,
         )
@@ -79,7 +84,12 @@ def test_publish_conda_raises_exception_if_repository_url_is_null(
     with cd(temp_small_conda_pyproject.parent):
         result = cli_runner.invoke(
             app,
-            ["-f", str(temp_small_conda_pyproject), "package", "publish"],
+            [
+                "package",
+                "publish",
+                "-f",
+                str(temp_small_conda_pyproject),
+            ],
             input="y",
         )
     assert result.exit_code == 1

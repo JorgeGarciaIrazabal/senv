@@ -20,7 +20,14 @@ def test_venv_locks_builds_the_lock_files_in_default_venv_lock_files(
     with cd(temp_pyproject.parent):
         result = cli_runner.invoke(
             app,
-            ["-f", str(temp_pyproject), "venv", "lock", "--platforms", "linux-64"],
+            [
+                "venv",
+                "lock",
+                "--platforms",
+                "linux-64",
+                "-f",
+                str(temp_pyproject),
+            ],
             catch_exceptions=False,
         )
         assert result.exit_code == 0
@@ -38,7 +45,14 @@ def test_venv_locks_builds_the_lock_files_in_the_configured_directory(
     set_new_setting_value(AllowedConfigKeys.VENV_LOCK_DIRECTORY, str(lock_dir))
     result = cli_runner.invoke(
         app,
-        ["-f", str(temp_pyproject), "venv", "lock", "--platforms", "osx-64"],
+        [
+            "venv",
+            "lock",
+            "--platforms",
+            "osx-64",
+            "-f",
+            str(temp_pyproject),
+        ],
         catch_exceptions=False,
     )
     assert result.exit_code == 0

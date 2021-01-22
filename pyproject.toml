@@ -43,4 +43,6 @@ conda-channels = [
 ]
 poetry-path = "/home/jirazabal/.local/bin/poetry"
 conda-path = "/home/jirazabal/miniconda3/bin/conda"
-build-system = "poetry"
+build-system = "conda"
+
+
