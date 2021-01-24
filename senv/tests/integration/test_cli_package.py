@@ -53,7 +53,12 @@ def test_build_conda_installs_conda_build_if_necessary(
     with cd(temp_small_conda_pyproject.parent):
         result = cli_runner.invoke(
             app,
-            ["package", "build", "-f", str(temp_small_conda_pyproject)],
+            [
+                "package",
+                "-f",
+                str(temp_small_conda_pyproject),
+                "build",
+            ],
             input="y",
             catch_exceptions=False,
         )
@@ -68,9 +73,9 @@ def test_build_simple_pyproject_with_conda_even_with_poetry_build_system_in_pypr
             app,
             [
                 "package",
-                "build",
                 "-f",
                 str(temp_simple_pyproject),
+                "build",
             ],
             input="y",
             catch_exceptions=False,
@@ -86,9 +91,9 @@ def test_publish_conda_raises_exception_if_repository_url_is_null(
             app,
             [
                 "package",
-                "publish",
                 "-f",
                 str(temp_small_conda_pyproject),
+                "publish",
             ],
             input="y",
         )
@@ -123,9 +128,9 @@ def test_lock_appdirs_simple_includes_metadata(temp_appdirs_pyproject, cli_runne
         cli_runner.invoke(
             app,
             [
+                "package",
                 "-f",
                 str(temp_appdirs_pyproject),
-                "package",
                 "lock",
                 "--platforms",
                 "osx-64",
@@ -149,9 +154,9 @@ def test_lock_based_on_tested_includes_pinned_dependencies(
         result = cli_runner.invoke(
             app,
             [
+                "package",
                 "-f",
                 str(temp_appdirs_pyproject),
-                "package",
                 "lock",
                 "--platforms",
                 "linux-64",
@@ -174,9 +179,9 @@ def test_lock_throws_if_not_all_lock_files_exist(temp_appdirs_pyproject, cli_run
         result = cli_runner.invoke(
             app,
             [
+                "package",
                 "-f",
                 str(temp_appdirs_pyproject),
-                "package",
                 "lock",
                 "--platforms",
                 "osx-64",

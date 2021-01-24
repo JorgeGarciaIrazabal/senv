@@ -22,11 +22,11 @@ def test_venv_locks_builds_the_lock_files_in_default_venv_lock_files(
             app,
             [
                 "venv",
+                "-f",
+                str(temp_pyproject),
                 "lock",
                 "--platforms",
                 "linux-64",
-                "-f",
-                str(temp_pyproject),
             ],
             catch_exceptions=False,
         )
@@ -47,11 +47,11 @@ def test_venv_locks_builds_the_lock_files_in_the_configured_directory(
         app,
         [
             "venv",
+            "-f",
+            str(temp_pyproject),
             "lock",
             "--platforms",
             "osx-64",
-            "-f",
-            str(temp_pyproject),
         ],
         catch_exceptions=False,
     )
