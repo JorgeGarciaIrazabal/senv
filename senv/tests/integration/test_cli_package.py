@@ -33,9 +33,9 @@ def appdirs_venv_lock_path(temp_appdirs_pyproject) -> Path:
         result = CliRunner().invoke(
             app,
             [
+                "venv",
                 "-f",
                 str(temp_appdirs_pyproject),
-                "venv",
                 "lock",
                 "--platforms",
                 "linux-64",
@@ -108,9 +108,9 @@ def test_lock_appdirs_simple_does_not_include_fake_dependencies(
         result = cli_runner.invoke(
             app,
             [
+                "package",
                 "-f",
                 str(temp_appdirs_pyproject),
-                "package",
                 "lock",
                 "--platforms",
                 "linux-64",
