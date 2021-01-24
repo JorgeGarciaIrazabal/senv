@@ -1,4 +1,4 @@
-name: senvx
+name: senvx-publish
 on:
   push:
     tags:

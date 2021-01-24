@@ -1,6 +1,8 @@
+import json
 from datetime import datetime
+from json import JSONDecodeError
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 import appdirs
 from pydantic import BaseModel, BaseSettings, Field
@@ -9,7 +11,7 @@ from senvx.errors import SenvxMalformedAppLockFile
 
 
 class LockFileMetaData(BaseModel):
-    package_name: str
+    package_name: Optional[str] = None
     entry_points: List[str] = Field(default_factory=list)
     create_at: datetime = Field(default_factory=datetime.utcnow)
 
@@ -25,7 +27,11 @@ class LockFileMetaData(BaseModel):
         metadata_json = "\n".join(
             [l.lstrip("#").strip() for l in commented_metadata.splitlines()]
         ).strip()
-        return LockFileMetaData.parse_raw(metadata_json)
+        try:
+            metadata_dict = json.loads(metadata_json)
+        except JSONDecodeError:
+            raise SenvxMalformedAppLockFile("Corrupted metadata, unable to parse json")
+        return LockFileMetaData.parse_obj(metadata_dict)
 
     def add_metadata_to_lockfile(self, lockfile: Path):
         lock_content = lockfile.read_text()
