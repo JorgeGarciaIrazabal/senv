@@ -4,9 +4,11 @@ import json
 import re
 from io import StringIO
 from pathlib import Path
+from tempfile import NamedTemporaryFile
 from typing import Any, Dict, List, Optional
 
 import yaml
+from conda_lock.conda_lock import run_lock
 from conda_lock.src_parser import LockSpecification
 from conda_lock.src_parser.pyproject_toml import (
     normalize_pypi_name,
@@ -18,6 +20,8 @@ from pydantic import BaseModel, Field
 from senv.errors import SenvInvalidPythonVersion
 from senv.log import log
 from senv.pyproject import PyProject
+from senv.utils import cd_tmp_dir
+from senvx.models import CombinedCondaLock, LockFileMetaData
 
 version_pattern = re.compile("version='(.*)'")
 
@@ -246,3 +250,38 @@ def create_env_yaml(
     recipe_dir.mkdir(parents=True, exist_ok=True)
     _yaml_safe_dump(yaml_dict, output)
     return output
+
+
+def combine_conda_lock_files(
+    directory: Path, platforms: List[str]
+) -> CombinedCondaLock:
+    platform_tar_links = {}
+    for platform in platforms:
+        lock_file = directory / f"conda-{platform}.lock"
+        lock_text = lock_file.read_text()
+        clean_lock_test = lock_text.split("@EXPLICIT", 1)[1].strip()
+        tar_links = [line.strip() for line in clean_lock_test.splitlines()]
+        platform_tar_links[platform] = tar_links
+    c = PyProject.get()
+    metadata = LockFileMetaData(
+        package_name=c.package_name,
+        entry_points=list(c.senv.scripts.keys()),
+        version=c.version,
+    )
+
+    return CombinedCondaLock(metadata=metadata, platform_tar_links=platform_tar_links)
+
+
+def generate_combined_conda_lock_file(
+    platforms: List[str], env_dict: Dict
+) -> CombinedCondaLock:
+    c = PyProject.get()
+    with NamedTemporaryFile(mode="w+") as f, cd_tmp_dir() as tmp_dir:
+        yaml.safe_dump(env_dict, f)
+        run_lock(
+            [Path(f.name)],
+            conda_exe=str(c.conda_path.resolve()),
+            platforms=platforms,
+        )
+        log.info("combining lock files")
+        return combine_conda_lock_files(tmp_dir, platforms)

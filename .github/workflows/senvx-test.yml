@@ -1,0 +1,41 @@
+name: senvx-test
+on: [ push ]
+
+jobs:
+  build_senvx:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux-64
+          - os: macos-latest
+            platform: osx-64
+          - os: windows-latest
+            platform: win-64
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v2
+      - uses: conda-incubator/setup-miniconda@v2
+        with:
+          auto-activate-base: true
+          python-version: 3.7
+          activate-environment: "test"
+      - name: install senv
+        shell: bash -l {0}
+        run: |
+          pip install senv
+      - name: install senvx virtual env
+        shell: bash -l {0}
+        run: |
+          cd senvx
+          # remove
+          senv venv install
+
+      - name: run tests
+        shell: bash -l {0}
+        run: |
+          cd senvx
+          conda activate senvx
+          pytest --junit-xml pytest.xml
+

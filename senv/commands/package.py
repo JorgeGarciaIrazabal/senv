@@ -1,6 +1,5 @@
 import subprocess
 from pathlib import Path
-from tempfile import TemporaryDirectory
 from typing import List, Optional
 
 import typer
@@ -13,15 +12,17 @@ from senv.command_lambdas import (
 )
 from senv.commands.settings_writer import remove_config_value_from_pyproject
 from senv.conda_publish import (
-    build_lock_paths,
     ensure_conda_build,
     generate_app_lock_file_based_on_tested_lock_path,
-    lock_file_with_metadata,
     publish_conda,
     set_conda_build_path,
 )
+from senv.log import log
 from senv.pyproject import BuildSystem, PyProject
-from senv.pyproject_to_conda import pyproject_to_env_app_yaml, pyproject_to_recipe_yaml
+from senv.pyproject_to_conda import (
+    generate_combined_conda_lock_file,
+    pyproject_to_recipe_yaml,
+)
 from senv.utils import cd, tmp_env, tmp_repo
 
 app = typer.Typer(add_completion=False)
@@ -116,7 +117,7 @@ def lock_app(
         case_sensitive=False,
         help="conda platforms, for example osx-64 and/or linux-64",
     ),
-    based_on_tested_lock_files_template: Optional[str] = typer.Option(
+    based_on_tested_lock_file: Optional[Path] = typer.Option(
         None,
         help="Create the lock file with the same direct dependencies"
         " as the ones pinned in the lock template provided.\n"
@@ -128,33 +129,33 @@ def lock_app(
         get_conda_channels,
     ),
 ):
+    c = PyProject.get()
     platforms = platforms
     if build_system == BuildSystem.POETRY:
         raise NotImplementedError()
     elif build_system == BuildSystem.CONDA:
-        PyProject.get().senv.package_lock_dir.mkdir(exist_ok=True, parents=True)
-        if based_on_tested_lock_files_template is None:
-            with cd(
-                PyProject.get().senv.package_lock_dir
-            ), TemporaryDirectory() as tmp_dir:
-                env_app_yaml = pyproject_to_env_app_yaml(
+        c.senv.conda_package_lock_path.parent.mkdir(exist_ok=True, parents=True)
+        if based_on_tested_lock_file is None:
+            combined_lock = generate_combined_conda_lock_file(
+                platforms,
+                dict(
+                    name=c.package_name,
                     channels=conda_channels,
-                    output=Path(tmp_dir) / "env.yaml",
-                )
-                lock_file_with_metadata(
-                    [env_app_yaml],
-                    conda_exe=PyProject.get().senv.conda_path,
-                    platforms=platforms,
-                )
+                    dependencies={c.package_name: f"=={c.version}"},
+                ),
+            )
+            c.senv.conda_package_lock_path.write_text(combined_lock.json(indent=2))
+
         else:
-            lock_paths = build_lock_paths(
-                based_on_tested_lock_files_template, platforms
+            combined_lock = generate_app_lock_file_based_on_tested_lock_path(
+                lock_path=based_on_tested_lock_file,
+                conda_channels=conda_channels,
+                platforms=platforms,
             )
 
-            for platform, path in lock_paths.items():
-                generate_app_lock_file_based_on_tested_lock_path(
-                    platform, path, conda_channels
-                )
-
+            c.senv.conda_package_lock_path.write_text(combined_lock.json(indent=2))
+        log.info(
+            f"Package lock file generated in {c.senv.conda_package_lock_path.resolve()}"
+        )
     else:
         raise NotImplementedError()

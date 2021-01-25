@@ -17,9 +17,9 @@ class AllowedConfigKeys(str, Enum):
     CONDA_PUBLISH_CHANNEL = "conda-publish-channel"
     POETRY_PUBLISH_REPOSITORY = "poetry-publish-repository"
     CONDA_PLATFORMS = "venv.conda-lock-platforms"
-    VENV_LOCK_DIRECTORY = "venv.venv-lock-dir"
+    CONDA_VENV_LOCK_PATH = "venv.conda-venv-lock-path"
     VENV_BUILD_SYSTEM = "venv.build-system"
-    PACKAGE_LOCK_DIRECTORY = "package-lock-dir"
+    CONDA_PACKAGE_LOCK_PATH = "conda-package-lock-path"
 
 
 CONFIG_KEYS_MULTIPLE = {

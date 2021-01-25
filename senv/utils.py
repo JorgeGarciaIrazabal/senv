@@ -19,6 +19,12 @@ def cd(path: Path):
 
 
 @contextlib.contextmanager
+def cd_tmp_dir(prefix="senv_") -> Iterator[Path]:
+    with TemporaryDirectory(prefix=prefix) as tmp_dir, cd(Path(tmp_dir)):
+        yield Path(tmp_dir)
+
+
+@contextlib.contextmanager
 def tmp_env() -> None:
     """
     Temporarily set the process environment variables.
@@ -44,9 +50,16 @@ def tmp_env() -> None:
 
 @contextlib.contextmanager
 def tmp_repo() -> Iterator[PyProject]:
+    """
+    duplicate repository in temporary directory and point PyProject to this new path
+    This is useful if we want to make temporary modifications
+    for long running tasks or that can fail.
+    That way no temporary change will never affect the real repository
+    :return:
+    """
     # this might not be very realistic for very big projects
     original_config_path = PyProject.get().config_path
-    with TemporaryDirectory(prefix="senv_tmp_repo-") as tmp_dir, cd(Path(tmp_dir)):
+    with cd_tmp_dir(prefix="senv_tmp_repo-") as tmp_dir:
         project_dir = Path(tmp_dir, "project")
         shutil.copytree(PyProject.get().config_path.parent, project_dir)
         PyProject.read_toml(Path(project_dir, "pyproject.toml"))
