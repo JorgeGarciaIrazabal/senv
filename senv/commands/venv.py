@@ -92,7 +92,6 @@ def sync(build_system: BuildSystem = typer.Option(get_default_build_system)):
 
 @app.command()
 def shell(build_system: BuildSystem = typer.Option(get_default_build_system)):
-    environ["SENV_ACTIVE"] = "1"
     environ["PATH"] = f"{PyProject.get().conda_path.parent}:{environ.get('PATH')}"
     if build_system == BuildSystem.POETRY:
         with cd(PyProject.get().config_path.parent):

@@ -1,17 +1,19 @@
 import os
 import shutil
 import subprocess
+from json import JSONDecodeError
 from pathlib import Path
 from sys import platform
 from tempfile import TemporaryDirectory
 from typing import List, Optional
 
 import filelock
+import pydantic
 import requests
 import typer
 from ensureconda import ensureconda
 
-from senvx.models import LockFileMetaData, SenvxMalformedAppLockFile, Settings
+from senvx.models import CombinedCondaLock, LockFileMetaData, Settings
 
 app = typer.Typer(no_args_is_help=True, add_completion=False)
 
@@ -33,7 +35,8 @@ def _install_from_lock_url(
     with TemporaryDirectory(prefix="senvx-") as tmp_dir:
         lock_path = Path(tmp_dir, "lock_file.lock")
         lock_path.write_bytes(requests.get(lock_url, allow_redirects=True).content)
-        metadata = _build_metadata(lock_path, package_name, entry_points)
+
+        metadata = _read_metadata(lock_path, package_name, entry_points)
         installation_path = (
             Settings().INSTALLATION_PATH.resolve() / metadata.package_name
         )
@@ -71,6 +74,18 @@ def _create_entry_points_symlinks(installation_path, metadata):
 
 def _create_conda_environment(lock_path, metadata, installation_path):
     conda_exe = ensureconda(no_install=True, micromamba=False, mamba=False)
+    try:
+        combined_lock = CombinedCondaLock.parse_file(lock_path)
+        lock_path.write_text(
+            "@EXPLICIT\n"
+            + "\n".join(combined_lock.platform_tar_links[current_platform()])
+        )
+    except (pydantic.ValidationError, JSONDecodeError):
+        # if we can not parse the file, it might be a standard conda lock file,
+        # trying to install it anyway
+        typer.echo(
+            "Warning: No combined lock file, trying to install it directly with conda"
+        )
     subprocess.check_call(
         [
             conda_exe,
@@ -100,15 +115,16 @@ def _handle_entry_points_conflicts(metadata):
             raise typer.Abort()
 
 
-def _build_metadata(lock_path, package_name, entry_points):
+def _read_metadata(lock_path, package_name, entry_points):
     try:
-        metadata = LockFileMetaData.from_lock_path(lock_path)
+        conda_lock = CombinedCondaLock.parse_file(lock_path)
+        metadata = conda_lock.metadata
         metadata.package_name = package_name or metadata.package_name
         metadata.entry_points = entry_points or metadata.entry_points
-    except SenvxMalformedAppLockFile:
+    except (pydantic.ValidationError, JSONDecodeError):
         if entry_points is None:
             typer.echo(
-                "Warning: Failed to parse metadata in lockfile and no entry_provided."
+                "Warning: Failed to parse metadata in lockfile and no entry_points provided."
                 " Creating the environment with no entry_points"
             )
         metadata = LockFileMetaData(
@@ -124,11 +140,11 @@ def _build_metadata(lock_path, package_name, entry_points):
 
 @app.command(no_args_is_help=True)
 def install(
-    lock_url_template: Optional[str] = typer.Option(
+    lock_url: Optional[str] = typer.Option(
         None,
         "-l",
-        "--lock-url-template",
-        help="lock file url template with the replaceable keywords: {platform}...",
+        "--lock-url",
+        help="lock file url",
     ),
     package_name: Optional[str] = typer.Argument(...),
     entry_points: Optional[List[str]] = typer.Argument(None),
@@ -136,8 +152,7 @@ def install(
     app_path = Path(Settings().INSTALLATION_PATH)
     app_path.mkdir(parents=True, exist_ok=True)
     with filelock.FileLock(str(app_path / "installing.lock"), timeout=60 * 5):
-        if lock_url_template:
-            lock_url = lock_url_template.replace("{platform}", current_platform())
+        if lock_url:
             _install_from_lock_url(lock_url, package_name, entry_points)
 
 

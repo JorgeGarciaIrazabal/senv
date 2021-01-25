@@ -39,7 +39,7 @@ jobs:
         run: poetry run black . --check
 
       - name: Test with pytest
-        run: poetry run pytest --junit-xml pytest.xml
+        run: poetry run pytest senv --junit-xml pytest.xml
 
       - name: Publish Unit Test Results
         uses: EnricoMi/publish-unit-test-result-action@v1.6

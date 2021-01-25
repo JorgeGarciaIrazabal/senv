@@ -52,9 +52,3 @@ class SenvShell(Shell):
         c.close()
         environ.pop("SENV_ACTIVE")
         sys.exit(c.exitstatus)
-
-
-if __name__ == "__main__":
-    environ["SENV_ACTIVE"] = "1"
-    SenvShell.get().activate(command="conda activate senv_example")
-    environ.pop("SENV_ACTIVE")

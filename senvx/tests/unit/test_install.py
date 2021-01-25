@@ -1,19 +1,20 @@
 import os
+import shutil
 from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
 import requests
 import typer
-from distlib._backport import shutil
 
 from senvx.main import install
 from senvx.models import Settings
 from senvx.tests.conftest import STATIC_PATH
 
-BLACK_METADATA_LOCK = STATIC_PATH / "black-with-meta-conda-linux-64.lock"
-BLACK_NO_NAME_LOCK = STATIC_PATH / "black-with-no-name-conda-linux-64.lock"
-BLACK_CORRUPTED_LOCK = STATIC_PATH / "black-corrupted-conda-linux-64.lock"
+BLACK_METADATA_LOCK = STATIC_PATH / "black-with-meta.lock.json"
+BLACK_NO_NAME_LOCK = STATIC_PATH / "black-with-no-name.lock.json"
+BLACK_CORRUPTED_LOCK = STATIC_PATH / "black-corrupted.lock.json"
+BLACK_STANDARD_LOCK = STATIC_PATH / "black-corrupted.lock.json"
 
 
 @pytest.fixture(autouse=True)
@@ -189,6 +190,22 @@ def tests_corrupted_meta_requires_package_name(
     try:
         install(
             str(BLACK_CORRUPTED_LOCK),
+            package_name="new_package_name",
+            entry_points=None,
+        )
+    except e:
+        raise pytest.fail(f"Not expected raise with package_name {e}")
+
+
+def tests_standard_lock_file_needs_package_name(
+    mock_subprocess_call, black_fake_entry_points
+):
+    with pytest.raises(typer.Exit) as e:
+        install(str(BLACK_STANDARD_LOCK), package_name=None, entry_points=None)
+
+    try:
+        install(
+            str(BLACK_STANDARD_LOCK),
             package_name="new_package_name",
             entry_points=None,
         )

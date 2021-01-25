@@ -1,14 +1,4 @@
-# platform: linux-64
-# env_hash: ff31d2f04be987422c163321a8c06894af804d66ea0168830f9378066abc20d0
-# @METADATA_INIT
-# {
-#   "version": "1.1.4",
-#   "entry_points": ["black", "blackd"],
-#   "create_at": "2021-01-24T04:52:59.843053"
-# }
-# @METADATA_END
 @EXPLICIT
-
 https://conda.anaconda.org/conda-forge/linux-64/_libgcc_mutex-0.1-conda_forge.tar.bz2#d7c89558ba9fa0495403155b64376d81
 https://conda.anaconda.org/conda-forge/linux-64/ca-certificates-2020.12.5-ha878542_0.tar.bz2#7eb5d4ffeee663caa1635cd67071bc1b
 https://conda.anaconda.org/conda-forge/linux-64/ld_impl_linux-64-2.35.1-hea4e1c9_1.tar.bz2#cdabe198d509eeae33a9fc8741d7841d

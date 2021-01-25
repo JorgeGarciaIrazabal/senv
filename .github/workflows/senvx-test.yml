@@ -8,10 +8,6 @@ jobs:
         include:
           - os: ubuntu-latest
             platform: linux-64
-          - os: macos-latest
-            platform: osx-64
-          - os: windows-latest
-            platform: win-64
 
     runs-on: ${{ matrix.os }}
     steps:
