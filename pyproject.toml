@@ -23,6 +23,7 @@ typer = "^0.3.2"
 pydantic = "^1.7.3"
 poetry-core = "^1.0.0"
 poetry = "^1.1.4"
+conda = "^4.9.2"
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.2.1"

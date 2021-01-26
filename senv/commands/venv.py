@@ -12,7 +12,7 @@ from senv.pyproject_to_conda import (
     pyproject_to_conda_venv_dict,
 )
 from senv.shell import SenvShell
-from senv.utils import cd
+from senv.utils import cd, mock_conda_resolver
 
 app = typer.Typer(add_completion=False)
 
@@ -112,19 +112,39 @@ def lock(
         case_sensitive=False,
         help="conda platforms, for example osx-64 or linux-64",
     ),
+    minimized_versions: bool = typer.Option(
+        False,
+    ),
 ):
     c = PyProject.get()
     if build_system == BuildSystem.POETRY:
+        if minimized_versions:
+            raise NotImplementedError(
+                "minimized_versions locking system not implemented for poetry yet"
+            )
         with cd(c.config_path.parent):
             subprocess.check_call([c.poetry_path, "lock"])
     elif build_system == BuildSystem.CONDA:
-        log.info("Building conda env from pyproject.toml")
-        c.venv.conda_venv_lock_path.parent.mkdir(exist_ok=True, parents=True)
-        combined_lock = generate_combined_conda_lock_file(
-            platforms,
-            pyproject_to_conda_venv_dict(),
-        )
-        c.venv.conda_venv_lock_path.write_text(combined_lock.json(indent=2))
-        log.info("lock file updated, sync environment running `senv venv sync`")
+        if minimized_versions:
+            from conda.api import Solver
+            from conda.models.channel import Channel
+
+            with mock_conda_resolver():
+                solver = Solver(
+                    "/home/jirazabal/conda_poc2",
+                    (Channel("conda-forge"),),
+                    specs_to_add=("typer",),
+                )
+                txn = solver.solve_final_state()
+            print(txn)
+        else:
+            log.info("Building conda env from pyproject.toml")
+            c.venv.conda_venv_lock_path.parent.mkdir(exist_ok=True, parents=True)
+            combined_lock = generate_combined_conda_lock_file(
+                platforms,
+                pyproject_to_conda_venv_dict(),
+            )
+            c.venv.conda_venv_lock_path.write_text(combined_lock.json(indent=2))
+            log.info("lock file updated, sync environment running `senv venv sync`")
     else:
         raise NotImplementedError()
