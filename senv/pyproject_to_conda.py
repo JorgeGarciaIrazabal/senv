@@ -16,6 +16,7 @@ from conda_lock.src_parser.pyproject_toml import (
     to_match_spec,
 )
 from pydantic import BaseModel, Field
+from rich.console import Console
 
 from senv.errors import SenvInvalidPythonVersion
 from senv.log import log
@@ -276,12 +277,17 @@ def generate_combined_conda_lock_file(
     platforms: List[str], env_dict: Dict
 ) -> CombinedCondaLock:
     c = PyProject.get()
-    with NamedTemporaryFile(mode="w+") as f, cd_tmp_dir() as tmp_dir:
+    console = Console()
+    with NamedTemporaryFile(mode="w+") as f, cd_tmp_dir() as tmp_dir, console.status(
+        "[green]Building lock files..."
+    ) as status:
         yaml.safe_dump(env_dict, f)
-        run_lock(
-            [Path(f.name)],
-            conda_exe=str(c.conda_path.resolve()),
-            platforms=platforms,
-        )
-        log.info("combining lock files")
+        for platform in platforms:
+            run_lock(
+                [Path(f.name)],
+                conda_exe=str(c.conda_path.resolve()),
+                platforms=[platform],
+            )
+            console.print(f"[blue]Generated lock file for {platform}")
+        status.update(status="[bold green]combining lock files...")
         return combine_conda_lock_files(tmp_dir, platforms)

@@ -3,6 +3,7 @@ from os import environ
 from typing import List
 
 import typer
+from rich.console import Console
 
 from senv.command_lambdas import get_conda_platforms, get_default_build_system
 from senv.log import log
@@ -61,7 +62,9 @@ def update(
     """,
 )
 def sync(build_system: BuildSystem = typer.Option(get_default_build_system)):
+    console = Console()
     c = PyProject.get()
+    console.print("[green]Syncing environment...")
     if build_system == BuildSystem.POETRY:
         with cd(c.config_path.parent):
             subprocess.check_call([c.poetry_path, "install", "--remove-untracked"])
@@ -69,7 +72,6 @@ def sync(build_system: BuildSystem = typer.Option(get_default_build_system)):
         if not c.venv.conda_venv_lock_path.exists():
             log.info("No lock file found, locking environment now")
             lock(build_system=build_system, platforms=get_conda_platforms())
-        log.info(f"Syncing environment {c.venv.name}")
         with c.venv.platform_conda_lock as lock_file:
             result = subprocess.run(
                 [
@@ -87,7 +89,7 @@ def sync(build_system: BuildSystem = typer.Option(get_default_build_system)):
     else:
         raise NotImplementedError()
 
-    typer.echo("Activate the environment with `senv venv shell`")
+    console.print("[bold green]Activate the environment with `senv venv shell`")
 
 
 @app.command()
@@ -113,18 +115,20 @@ def lock(
         help="conda platforms, for example osx-64 or linux-64",
     ),
 ):
+    console = Console()
     c = PyProject.get()
     if build_system == BuildSystem.POETRY:
         with cd(c.config_path.parent):
             subprocess.check_call([c.poetry_path, "lock"])
     elif build_system == BuildSystem.CONDA:
-        log.info("Building conda env from pyproject.toml")
         c.venv.conda_venv_lock_path.parent.mkdir(exist_ok=True, parents=True)
         combined_lock = generate_combined_conda_lock_file(
             platforms,
             pyproject_to_conda_venv_dict(),
         )
         c.venv.conda_venv_lock_path.write_text(combined_lock.json(indent=2))
-        log.info("lock file updated, sync environment running `senv venv sync`")
+        console.print(
+            "[bold green]Lock file updated, sync environment running `senv venv sync`"
+        )
     else:
         raise NotImplementedError()

@@ -1,6 +1,9 @@
 import contextlib
 import os
 import shutil
+import sys
+from io import StringIO
+from os import devnull
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Iterator
@@ -65,3 +68,37 @@ def tmp_repo() -> Iterator[PyProject]:
         PyProject.read_toml(Path(project_dir, "pyproject.toml"))
         yield PyProject.get()
     PyProject.read_toml(original_config_path)
+
+
+@contextlib.contextmanager
+def suppress_stdout_stderr():
+    """A context manager that redirects stdout and stderr to devnull"""
+    with open(devnull, "w") as fnull, contextlib.redirect_stderr(
+        fnull
+    ) as err, contextlib.redirect_stdout(fnull) as out:
+        yield err, out
+
+
+class Hider:
+    def __init__(self, channels=("stdout",)):
+        self._stomach = StringIO()
+        self._orig = {ch: None for ch in channels}
+
+    def __enter__(self):
+        for ch in self._orig:
+            self._orig[ch] = getattr(sys, ch)
+            setattr(sys, ch, self)
+        return self
+
+    def write(self, string):
+        self._stomach.write(string)
+
+    def flush(self):
+        pass
+
+    def autopsy(self):
+        return self._stomach.getvalue()
+
+    def __exit__(self, *args):
+        for ch in self._orig:
+            setattr(sys, ch, self._orig[ch])
