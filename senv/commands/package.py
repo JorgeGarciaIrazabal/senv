@@ -12,7 +12,6 @@ from senv.command_lambdas import (
 )
 from senv.commands.settings_writer import remove_config_value_from_pyproject
 from senv.conda_publish import (
-    ensure_conda_build,
     generate_app_lock_file_based_on_tested_lock_path,
     publish_conda,
     set_conda_build_path,
@@ -38,7 +37,6 @@ def build_package(
         with cd(PyProject.get().config_path.parent):
             subprocess.check_call([PyProject.get().poetry_path, "build"])
     elif build_system == BuildSystem.CONDA:
-        conda_build_path = ensure_conda_build()
         with tmp_env(), tmp_repo() as config:
             set_conda_build_path()
             # removing build-system from pyproject.toml as conda doesn't like it
@@ -47,9 +45,9 @@ def build_package(
                 remove_config_value_from_pyproject(config.config_path, "build-system")
             except NonExistentKey:
                 pass
-            args = [conda_build_path, "--no-test"]
+            args = ["conda-mambabuild", "--build-only", "--override-channels"]
             for c in PyProject.get().senv.conda_channels:
-                args += ["-c", c]
+                args += ["--channel", c]
             meta_path = config.config_path.parent / "conda.recipe" / "meta.yaml"
             pyproject_to_recipe_yaml(
                 python_version=python_version,

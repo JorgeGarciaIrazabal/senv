@@ -5,6 +5,7 @@ import re
 from io import StringIO
 from pathlib import Path
 from tempfile import NamedTemporaryFile
+from threading import Timer
 from typing import Any, Dict, List, Optional
 
 import yaml
@@ -15,8 +16,8 @@ from conda_lock.src_parser.pyproject_toml import (
     poetry_version_to_conda_version,
     to_match_spec,
 )
+from progress.spinner import PixelSpinner
 from pydantic import BaseModel, Field
-from rich.console import Console
 
 from senv.errors import SenvInvalidPythonVersion
 from senv.log import log
@@ -273,14 +274,29 @@ def combine_conda_lock_files(
     return CombinedCondaLock(metadata=metadata, platform_tar_links=platform_tar_links)
 
 
+class MySpinner(PixelSpinner):
+    def __init__(self, message="", **kwargs):
+        super().__init__(message, **kwargs)
+        self._finished = False
+
+    def finish(self):
+        super().finish()
+        self._finished = True
+
+    def start(self):
+        if not self._finished:
+            self.next()
+            Timer(0.3, self.start).start()
+
+
 def generate_combined_conda_lock_file(
     platforms: List[str], env_dict: Dict
 ) -> CombinedCondaLock:
     c = PyProject.get()
-    console = Console()
-    with NamedTemporaryFile(mode="w+") as f, cd_tmp_dir() as tmp_dir, console.status(
-        "[green]Building lock files..."
+    with NamedTemporaryFile(mode="w+") as f, cd_tmp_dir() as tmp_dir, MySpinner(
+        "Building lock files..."
     ) as status:
+        status.start()
         yaml.safe_dump(env_dict, f)
         for platform in platforms:
             run_lock(
@@ -288,6 +304,5 @@ def generate_combined_conda_lock_file(
                 conda_exe=str(c.conda_path.resolve()),
                 platforms=[platform],
             )
-            console.print(f"[blue]Generated lock file for {platform}")
-        status.update(status="[bold green]combining lock files...")
+        status.writeln("combining lock files...")
         return combine_conda_lock_files(tmp_dir, platforms)

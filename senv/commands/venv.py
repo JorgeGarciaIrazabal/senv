@@ -3,7 +3,6 @@ from os import environ
 from typing import List
 
 import typer
-from rich.console import Console
 
 from senv.command_lambdas import get_conda_platforms, get_default_build_system
 from senv.log import log
@@ -62,9 +61,7 @@ def update(
     """,
 )
 def sync(build_system: BuildSystem = typer.Option(get_default_build_system)):
-    console = Console()
     c = PyProject.get()
-    console.print("[green]Syncing environment...")
     if build_system == BuildSystem.POETRY:
         with cd(c.config_path.parent):
             subprocess.check_call([c.poetry_path, "install", "--remove-untracked"])
@@ -88,8 +85,6 @@ def sync(build_system: BuildSystem = typer.Option(get_default_build_system)):
             raise typer.Abort("Failed syncing environment")
     else:
         raise NotImplementedError()
-
-    console.print("[bold green]Activate the environment with `senv venv shell`")
 
 
 @app.command()
@@ -115,7 +110,6 @@ def lock(
         help="conda platforms, for example osx-64 or linux-64",
     ),
 ):
-    console = Console()
     c = PyProject.get()
     if build_system == BuildSystem.POETRY:
         with cd(c.config_path.parent):
@@ -127,8 +121,5 @@ def lock(
             pyproject_to_conda_venv_dict(),
         )
         c.venv.conda_venv_lock_path.write_text(combined_lock.json(indent=2))
-        console.print(
-            "[bold green]Lock file updated, sync environment running `senv venv sync`"
-        )
     else:
         raise NotImplementedError()

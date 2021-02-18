@@ -1,11 +1,9 @@
 import os
 import subprocess
 from pathlib import Path
-from shutil import which
 from typing import List
 
 import requests
-import typer
 from conda_lock.conda_lock import run_lock
 from conda_lock.src_parser.pyproject_toml import normalize_pypi_name
 
@@ -16,29 +14,6 @@ from senv.pyproject_to_conda import combine_conda_lock_files, create_env_yaml
 from senv.utils import cd_tmp_dir
 from senvx.errors import SenvxMalformedAppLockFile
 from senvx.models import CombinedCondaLock, LockFileMetaData
-
-
-def ensure_conda_build():
-    if which("conda-build") is None:
-        log.warning("conda build not found, install conda-build")
-        if typer.confirm("Do you want to install it?"):
-            log.info("Installing conda-build")
-            subprocess.check_call(
-                [
-                    PyProject.get().conda_path,
-                    "install",
-                    "conda-build",
-                    "-c",
-                    "conda-forge",
-                    "-y",
-                ]
-            )
-            return subprocess.check_output(
-                [PyProject.get().conda_path, "run", "which", "conda-build"]
-            ).strip()
-        else:
-            raise typer.Abort()
-    return which("conda-build")
 
 
 def set_conda_build_path():
