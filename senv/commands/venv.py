@@ -101,6 +101,32 @@ def shell(build_system: BuildSystem = typer.Option(get_default_build_system)):
     environ.pop("SENV_ACTIVE")
 
 
+@app.command(
+    context_settings={"allow_extra_args": True, "ignore_unknown_options": True}
+)
+def run(
+    ctx: typer.Context,
+    build_system: BuildSystem = typer.Option(get_default_build_system),
+):
+    if build_system == BuildSystem.POETRY:
+        with cd(PyProject.get().config_path.parent):
+            subprocess.check_call(["poetry", "run"] + ctx.args)
+    elif build_system == BuildSystem.CONDA:
+        subprocess.check_call(
+            [
+                "conda",
+                "run",
+                "-n",
+                PyProject.get().venv.name,
+                "--no-capture-output",
+                "--live-stream",
+            ]
+            + ctx.args
+        )
+    else:
+        raise NotImplementedError()
+
+
 @app.command()
 def lock(
     build_system: BuildSystem = typer.Option(get_default_build_system),

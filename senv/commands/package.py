@@ -3,14 +3,12 @@ from pathlib import Path
 from typing import List, Optional
 
 import typer
-from tomlkit.exceptions import NonExistentKey
 
 from senv.command_lambdas import (
     get_conda_channels,
     get_conda_platforms,
     get_default_build_system,
 )
-from senv.commands.settings_writer import remove_config_value_from_pyproject
 from senv.conda_publish import (
     generate_app_lock_file_based_on_tested_lock_path,
     publish_conda,
@@ -39,13 +37,7 @@ def build_package(
     elif build_system == BuildSystem.CONDA:
         with tmp_env(), tmp_repo() as config:
             set_conda_build_path()
-            # removing build-system from pyproject.toml as conda doesn't like it
-            # when building the package
-            try:
-                remove_config_value_from_pyproject(config.config_path, "build-system")
-            except NonExistentKey:
-                pass
-            args = ["conda-mambabuild", "--build-only", "--override-channels"]
+            args = ["conda-mambabuild", "--override-channels"]
             for c in PyProject.get().senv.conda_channels:
                 args += ["--channel", c]
             meta_path = config.config_path.parent / "conda.recipe" / "meta.yaml"

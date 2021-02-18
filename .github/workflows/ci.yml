@@ -7,20 +7,22 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        python-version: [ 3.7 ]
+        python-version: [ 3.8 ]
         os: [ ubuntu-latest ]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v2
       - uses: conda-incubator/setup-miniconda@v2
         with:
-          auto-activate-base: true
+          channels: conda-forge,defaults,jorgegarciairazabal
+          show-channel-urls: true
           python-version: ${{ matrix.python-version }}
           activate-environment: "test"
 
       - name: Install senv
         shell: bash -l {0}
-        run: pip install senv==0.0.0a4
+        run: |
+          conda install senv -y
 
       - name: Install Dependencies
         shell: bash -l {0}
@@ -28,11 +30,13 @@ jobs:
 
       - name: Code Quality
         shell: bash -l {0}
-        run: python black . --check
+        run: |
+          senv venv run black . --check
 
       - name: Test with pytest
         shell: bash -l {0}
-        run: pytest senv --junit-xml pytest.xml
+        run: |
+          senv venv run pytest senv --junit-xml pytest.xml
 
       - name: Publish Unit Test Results
         uses: EnricoMi/publish-unit-test-result-action@v1.6

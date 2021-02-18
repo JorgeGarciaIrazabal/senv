@@ -186,7 +186,9 @@ def pyproject_to_meta(
         package=_Package(name=c.package_name, version=c.version),
         source=_Source(path=c.config_path.parent.resolve()),
         build=_Build(entry_points=entry_points),
-        requirements=_Requirements(host=[python_version, "pip"], run=dependencies),
+        requirements=_Requirements(
+            host=[python_version, "pip", "poetry"], run=dependencies
+        ),
         about=_About(
             home=c.senv.homepage,
             license=license,
