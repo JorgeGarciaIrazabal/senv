@@ -7,9 +7,9 @@ from senv.conda_publish import LockFileMetaData
 from senv.errors import SenvNotAllPlatformsInBaseLockFile
 from senv.main import app
 from senv.pyproject import PyProject
+from senv.senvx.models import CombinedCondaLock
 from senv.tests.conftest import STATIC_PATH
 from senv.utils import cd
-from senvx.models import CombinedCondaLock
 
 
 @fixture()

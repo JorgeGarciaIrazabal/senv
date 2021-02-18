@@ -15,7 +15,7 @@ from pydantic import BaseModel, Field, PrivateAttr, root_validator, validator
 
 from senv.errors import SenvBadConfiguration, SenvNotSupportedPlatform
 from senv.log import log
-from senvx.models import CombinedCondaLock
+from senv.senvx.models import CombinedCondaLock
 
 
 class BuildSystem(str, Enum):

@@ -11,9 +11,9 @@ from senv.errors import SenvNotAllPlatformsInBaseLockFile
 from senv.log import log
 from senv.pyproject import PyProject
 from senv.pyproject_to_conda import combine_conda_lock_files, create_env_yaml
+from senv.senvx.errors import SenvxMalformedAppLockFile
+from senv.senvx.models import CombinedCondaLock, LockFileMetaData
 from senv.utils import cd_tmp_dir
-from senvx.errors import SenvxMalformedAppLockFile
-from senvx.models import CombinedCondaLock, LockFileMetaData
 
 
 def set_conda_build_path():

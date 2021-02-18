@@ -22,8 +22,8 @@ from pydantic import BaseModel, Field
 from senv.errors import SenvInvalidPythonVersion
 from senv.log import log
 from senv.pyproject import PyProject
+from senv.senvx.models import CombinedCondaLock, LockFileMetaData
 from senv.utils import cd_tmp_dir
-from senvx.models import CombinedCondaLock, LockFileMetaData
 
 version_pattern = re.compile("version='(.*)'")
 

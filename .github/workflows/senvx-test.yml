@@ -20,18 +20,18 @@ jobs:
       - name: install senv
         shell: bash -l {0}
         run: |
-          pip install senv
+          pip install senv==0.0.0a4
       - name: install senvx virtual env
         shell: bash -l {0}
         run: |
-          cd senvx
+          cd senv/senvx
           # remove
           senv venv install
 
       - name: run tests
         shell: bash -l {0}
         run: |
-          cd senvx
+          cd senv/senvx
           conda activate senvx
           cd ..
           pytest senvx --junit-xml pytest.xml

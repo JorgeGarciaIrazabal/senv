@@ -3,9 +3,9 @@ from pytest import fixture
 from senv.commands.settings_writer import AllowedConfigKeys, set_new_setting_value
 from senv.main import app
 from senv.pyproject import PyProject
+from senv.senvx.models import CombinedCondaLock
 from senv.tests.conftest import STATIC_PATH
 from senv.utils import cd
-from senvx.models import CombinedCondaLock
 
 PYPROJECT_TOML = STATIC_PATH / "with_conda_channels_pyproject.toml"
 

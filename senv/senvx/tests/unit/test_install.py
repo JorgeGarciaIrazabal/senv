@@ -7,9 +7,9 @@ import pytest
 import requests
 import typer
 
-from senvx.main import install
-from senvx.models import Settings
-from senvx.tests.conftest import STATIC_PATH
+from senv.senvx.main import install
+from senv.senvx.models import Settings
+from senv.senvx.tests.conftest import STATIC_PATH
 
 BLACK_METADATA_LOCK = STATIC_PATH / "black-with-meta.lock.json"
 BLACK_NO_NAME_LOCK = STATIC_PATH / "black-with-no-name.lock.json"

@@ -20,7 +20,7 @@ jobs:
 
       - name: Install senv
         shell: bash -l {0}
-        run: pip install senv
+        run: pip install senv==0.0.0a4
 
       - name: Install Dependencies
         shell: bash -l {0}

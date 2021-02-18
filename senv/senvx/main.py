@@ -13,7 +13,7 @@ import requests
 import typer
 from ensureconda import ensureconda
 
-from senvx.models import CombinedCondaLock, LockFileMetaData, Settings
+from senv.senvx.models import CombinedCondaLock, LockFileMetaData, Settings
 
 app = typer.Typer(no_args_is_help=True, add_completion=False)
 
