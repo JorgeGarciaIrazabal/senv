@@ -7,39 +7,36 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        python-version: [ 3.7 ]
+        python-version: [ 3.8 ]
         os: [ ubuntu-latest ]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
+      - uses: conda-incubator/setup-miniconda@v2
         with:
+          channels: conda-forge,defaults,jorgegarciairazabal
+          show-channel-urls: true
           python-version: ${{ matrix.python-version }}
+          activate-environment: "test"
 
-      - uses: Gr1N/setup-poetry@v4
-
-      - name: Cache Poetry virtualenv
-        uses: actions/cache@v1
-        id: cache
-        with:
-          path: ~/.virtualenvs
-          key: poetry-${{ hashFiles('**/poetry.lock') }}
-          restore-keys: |
-            poetry-${{ hashFiles('**/poetry.lock') }}
-
-      - name: Set Poetry config
+      - name: Install senv
+        shell: bash -l {0}
         run: |
-          poetry config virtualenvs.path ~/.virtualenvs
+          conda install senv -y
 
       - name: Install Dependencies
-        run: poetry install
-        if: steps.cache.outputs.cache-hit != 'true'
+        shell: bash -l {0}
+        run: senv venv sync
 
       - name: Code Quality
-        run: poetry run black . --check
+        shell: bash -l {0}
+        run: |
+          senv venv run black . --check
 
       - name: Test with pytest
-        run: poetry run pytest --junit-xml pytest.xml
+        shell: bash -l {0}
+        run: |
+          senv venv run pytest senv --junit-xml pytest.xml
 
       - name: Publish Unit Test Results
         uses: EnricoMi/publish-unit-test-result-action@v1.6
@@ -49,7 +46,8 @@ jobs:
           files: pytest.xml
 
       - name: Publish to pypi
+        shell: bash -l {0}
         if: startsWith(github.ref, 'refs/tags/')
         run:
-          poetry publish -u ${{ secrets.PYPI_USERNAME }} -p ${{ secrets.PYPI_PASSWORD }} --build
+          senv package publish --username ${{ secrets.PYPI_USERNAME }} --password ${{ secrets.PYPI_PASSWORD }} --build
 

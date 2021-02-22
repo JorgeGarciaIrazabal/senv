@@ -1,0 +1,39 @@
+name: senvx-test
+on: [ push ]
+
+jobs:
+  build_senvx:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux-64
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v2
+      - uses: conda-incubator/setup-miniconda@v2
+        with:
+          channels: conda-forge,defaults,jorgegarciairazabal
+          show-channel-urls: true
+          python-version: 3.8
+          activate-environment: "test"
+      - name: install senv
+        shell: bash -l {0}
+        run: |
+          conda install -c jorgegarciairazabal senv
+
+      - name: install senvx virtual env
+        shell: bash -l {0}
+        run: |
+          cd senv/senvx
+          # remove
+          senv venv install
+
+      - name: run tests
+        shell: bash -l {0}
+        run: |
+          cd senv/senvx
+          senv venv run pytest senvx --junit-xml pytest.xml
+
+

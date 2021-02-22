@@ -4,20 +4,26 @@ import json
 import re
 from io import StringIO
 from pathlib import Path
+from tempfile import NamedTemporaryFile
+from threading import Timer
 from typing import Any, Dict, List, Optional
 
 import yaml
+from conda_lock.conda_lock import run_lock
 from conda_lock.src_parser import LockSpecification
 from conda_lock.src_parser.pyproject_toml import (
     normalize_pypi_name,
     poetry_version_to_conda_version,
     to_match_spec,
 )
+from progress.spinner import PixelSpinner
 from pydantic import BaseModel, Field
 
 from senv.errors import SenvInvalidPythonVersion
 from senv.log import log
 from senv.pyproject import PyProject
+from senv.senvx.models import CombinedCondaLock, LockFileMetaData
+from senv.utils import cd_tmp_dir
 
 version_pattern = re.compile("version='(.*)'")
 
@@ -180,7 +186,9 @@ def pyproject_to_meta(
         package=_Package(name=c.package_name, version=c.version),
         source=_Source(path=c.config_path.parent.resolve()),
         build=_Build(entry_points=entry_points),
-        requirements=_Requirements(host=[python_version, "pip"], run=dependencies),
+        requirements=_Requirements(
+            host=[python_version, "pip", "poetry"], run=dependencies
+        ),
         about=_About(
             home=c.senv.homepage,
             license=license,
@@ -246,3 +254,57 @@ def create_env_yaml(
     recipe_dir.mkdir(parents=True, exist_ok=True)
     _yaml_safe_dump(yaml_dict, output)
     return output
+
+
+def combine_conda_lock_files(
+    directory: Path, platforms: List[str]
+) -> CombinedCondaLock:
+    platform_tar_links = {}
+    for platform in platforms:
+        lock_file = directory / f"conda-{platform}.lock"
+        lock_text = lock_file.read_text()
+        clean_lock_test = lock_text.split("@EXPLICIT", 1)[1].strip()
+        tar_links = [line.strip() for line in clean_lock_test.splitlines()]
+        platform_tar_links[platform] = tar_links
+    c = PyProject.get()
+    metadata = LockFileMetaData(
+        package_name=c.package_name,
+        entry_points=list(c.senv.scripts.keys()),
+        version=c.version,
+    )
+
+    return CombinedCondaLock(metadata=metadata, platform_tar_links=platform_tar_links)
+
+
+class MySpinner(PixelSpinner):
+    def __init__(self, message="", **kwargs):
+        super().__init__(message, **kwargs)
+        self._finished = False
+
+    def finish(self):
+        super().finish()
+        self._finished = True
+
+    def start(self):
+        if not self._finished:
+            self.next()
+            Timer(0.3, self.start).start()
+
+
+def generate_combined_conda_lock_file(
+    platforms: List[str], env_dict: Dict
+) -> CombinedCondaLock:
+    c = PyProject.get()
+    with NamedTemporaryFile(mode="w+") as f, cd_tmp_dir() as tmp_dir, MySpinner(
+        "Building lock files..."
+    ) as status:
+        status.start()
+        yaml.safe_dump(env_dict, f)
+        for platform in platforms:
+            run_lock(
+                [Path(f.name)],
+                conda_exe=str(c.conda_path.resolve()),
+                platforms=[platform],
+            )
+        status.writeln("combining lock files...")
+        return combine_conda_lock_files(tmp_dir, platforms)

@@ -1,5 +1,4 @@
-from pathlib import Path
-from typing import List, Set
+from typing import Set
 
 
 class SenvError(Exception):
@@ -26,14 +25,11 @@ class SenvBadConfiguration(SenvError):
     pass
 
 
-class SenvNotAllRequiredLockFiles(SenvError):
-    def __init__(self, missing_lock_files: List[Path]):
-        self.missing_lock_files = missing_lock_files
+class SenvNotAllPlatformsInBaseLockFile(SenvError):
+    def __init__(self, platforms: Set[str]):
+        self.missing_platforms = platforms
 
     def __str__(self):
-        files = "\n-".join([str(f.resolve()) for f in self.missing_lock_files])
-        return f"Missing files: \n-{files}"
-
-
-class SenvMalformedAppLockFile(SenvError):
-    pass
+        return (
+            f"Missing platforms in base lock file: {', '.join(self.missing_platforms)}"
+        )

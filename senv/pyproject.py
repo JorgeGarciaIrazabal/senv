@@ -1,9 +1,11 @@
 import os
 import shutil
+from contextlib import contextmanager
 from copy import deepcopy
 from enum import Enum
 from pathlib import Path
 from sys import platform
+from tempfile import TemporaryDirectory
 from typing import Any, Dict, List, Optional, Set
 
 import toml
@@ -13,6 +15,7 @@ from pydantic import BaseModel, Field, PrivateAttr, root_validator, validator
 
 from senv.errors import SenvBadConfiguration, SenvNotSupportedPlatform
 from senv.log import log
+from senv.senvx.models import CombinedCondaLock
 
 
 class BuildSystem(str, Enum):
@@ -25,11 +28,14 @@ class _SenvVEnv(BaseModel):
     conda_lock_platforms: Set[str] = Field(
         set(DEFAULT_PLATFORMS), alias="conda-lock-platforms"
     )
-    venv_lock_dir: Path = Field(Path("venv_locks_dir"), alias="venv-lock-dir")
+    conda_venv_lock_path: Path = Field(
+        Path("conda_venv.lock.json"), alias="conda-venv-lock-path"
+    )
     name: Optional[str]
 
     @property
-    def platform_conda_lock(self):
+    @contextmanager
+    def platform_conda_lock(self) -> Path:
         if platform == "linux" or platform == "linux2":
             plat = "linux-64"
         elif platform == "darwin":
@@ -38,7 +44,19 @@ class _SenvVEnv(BaseModel):
             plat = "win-64"
         else:
             raise SenvNotSupportedPlatform(f"Platform {platform} not supported")
-        return self.venv_lock_dir / f"conda-{plat}.lock"
+
+        if not self.conda_venv_lock_path.exists():
+            raise SenvBadConfiguration(
+                f"No conda venv lock file found in {self.conda_venv_lock_path.resolve()}"
+            )
+
+        with TemporaryDirectory() as tmp_dir:
+            combine_lock_file = CombinedCondaLock.parse_file(self.conda_venv_lock_path)
+            plat_file = Path(tmp_dir) / f"plat-{plat}.lock"
+            plat_file.write_text(
+                "@EXPLICIT\n" + "\n".join(combine_lock_file.platform_tar_links[plat])
+            )
+            yield plat_file
 
 
 class _Senv(BaseModel):
@@ -67,7 +85,9 @@ class _Senv(BaseModel):
     conda_publish_channel: Optional[str] = Field(
         None, alias="conda-publish-channel", env="SENV_CONDA_PUBLISH_CHANNEL"
     )
-    package_lock_dir: Path = Field(Path("package_locks_dir"), alias="package-lock-dir")
+    conda_package_lock_path: Path = Field(
+        Path("package_locks_dir"), alias="conda-package-lock-path"
+    )
     poetry_publish_repository: Optional[str] = Field(
         None, alias="poetry-publish-repository", env="SENV_POETRY_PUBLISH_REPOSITORY"
     )

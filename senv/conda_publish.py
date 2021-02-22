@@ -1,57 +1,19 @@
 import os
 import subprocess
-from datetime import datetime
 from pathlib import Path
-from shutil import which
-from tempfile import TemporaryDirectory
-from typing import List, Optional, Sequence
+from typing import List
 
 import requests
-import typer
 from conda_lock.conda_lock import run_lock
 from conda_lock.src_parser.pyproject_toml import normalize_pypi_name
-from pydantic import BaseModel, Field
 
-from senv.errors import SenvError, SenvMalformedAppLockFile, SenvNotAllRequiredLockFiles
+from senv.errors import SenvNotAllPlatformsInBaseLockFile
 from senv.log import log
 from senv.pyproject import PyProject
-from senv.pyproject_to_conda import create_env_yaml
-from senv.utils import cd
-
-
-# todo use senvx LockFileMetaData instead once we release the first version
-class LockFileMetaData(BaseModel):
-    package_name: str
-    version: str
-    entry_points: List[str] = Field(default_factory=list)
-    create_at: datetime = Field(default_factory=datetime.utcnow)
-
-    @staticmethod
-    def from_lock_path(lockfile: Path) -> "LockFileMetaData":
-        return _read_metadata_from_lockfile(lockfile=lockfile)
-
-
-def ensure_conda_build():
-    if which("conda-build") is None:
-        log.warning("conda build not found, install conda-build")
-        if typer.confirm("Do you want to install it?"):
-            log.info("Installing conda-build")
-            subprocess.check_call(
-                [
-                    PyProject.get().conda_path,
-                    "install",
-                    "conda-build",
-                    "-c",
-                    "conda-forge",
-                    "-y",
-                ]
-            )
-            return subprocess.check_output(
-                [PyProject.get().conda_path, "run", "which", "conda-build"]
-            ).strip()
-        else:
-            raise typer.Abort()
-    return which("conda-build")
+from senv.pyproject_to_conda import combine_conda_lock_files, create_env_yaml
+from senv.senvx.errors import SenvxMalformedAppLockFile
+from senv.senvx.models import CombinedCondaLock, LockFileMetaData
+from senv.utils import cd_tmp_dir
 
 
 def set_conda_build_path():
@@ -80,88 +42,59 @@ def publish_conda(username: str, password: str, repository_url: str):
             )
 
 
-def build_lock_paths(based_on_tested_lock_files_template, platforms):
-    lock_paths = {}
-    if "{platform}" not in based_on_tested_lock_files_template:
-        raise SenvError("no {platform} in 'based_on_tested_lock_files_template'")
-    for platform in platforms:
-        lock_paths[platform] = Path(
-            based_on_tested_lock_files_template.replace("{platform}", platform)
-        )
-    missing_lock_files = [p for p in lock_paths.values() if not p.exists()]
-
-    if len(missing_lock_files) > 0:
-        raise SenvNotAllRequiredLockFiles(missing_lock_files)
-    return lock_paths
-
-
 def generate_app_lock_file_based_on_tested_lock_path(
-    platform, lock_path, conda_channels
-):
+    lock_path: Path, conda_channels: List[str], platforms: List[str]
+) -> CombinedCondaLock:
+    platforms_set = set(platforms)
+    c = PyProject.get()
     direct_dependencies_name = {
-        normalize_pypi_name(d).lower() for d in PyProject.get().senv.dependencies.keys()
+        normalize_pypi_name(d).lower() for d in c.senv.dependencies.keys()
     }
     # always include python even if it is not in the dependencies
     direct_dependencies_name.add("python")
 
-    with cd(PyProject.get().senv.package_lock_dir), TemporaryDirectory() as tmp_dir:
-        lock_str = lock_path.read_text()
-        lock_str = lock_str.split("@EXPLICIT", 1)[1].strip()
-        # add the current package
-        dependencies = {
-            PyProject.get().package_name: f"=={PyProject.get().version}",
-        }
-        # pin version for all direct dependencies
-        for line in lock_str.splitlines(keepends=False):
-            channel, dep = line.rsplit("/", 1)
-            name, version, _ = dep.rsplit("-", 2)
-            if name.lower() in direct_dependencies_name:
-                dependencies[name] = f"=={version}"
-        yaml_path = create_env_yaml(
-            channels=conda_channels,
-            output=Path(tmp_dir) / "env.yaml",
-            dependencies=dependencies,
-        )
-        lock_file_with_metadata(
-            [yaml_path],
-            conda_exe=str(PyProject.get().conda_path),
-            platforms=[platform],
+    combined_lock = CombinedCondaLock.parse_file(lock_path)
+    combined_lock_platforms_set = set(combined_lock.platform_tar_links.keys())
+    if not platforms_set.issubset(combined_lock_platforms_set):
+        raise SenvNotAllPlatformsInBaseLockFile(
+            platforms_set.difference(combined_lock_platforms_set)
         )
 
-
-def lock_file_with_metadata(
-    environment_files: List[Path],
-    conda_exe: Optional[str],
-    platforms: Optional[List[str]] = None,
-    mamba: bool = False,
-    micromamba: bool = False,
-    include_dev_dependencies: bool = True,
-    channel_overrides: Optional[Sequence[str]] = None,
-):
-    run_lock(
-        environment_files=environment_files,
-        conda_exe=conda_exe,
-        platforms=platforms,
-        mamba=mamba,
-        micromamba=micromamba,
-        include_dev_dependencies=include_dev_dependencies,
-        channel_overrides=channel_overrides,
-    )
-    for platform in platforms:
-        path = Path(f"conda-{platform}.lock")
-        _add_app_lockfile_metadata(path)
+    with cd_tmp_dir() as tmp_dir:
+        for platform in platforms_set:
+            tar_urls = combined_lock.platform_tar_links[platform]
+            # add the current package
+            dependencies = {
+                c.package_name: f"=={c.version}",
+            }
+            # pin version for all direct dependencies
+            for line in tar_urls:
+                channel, dep = line.rsplit("/", 1)
+                name, version, _ = dep.rsplit("-", 2)
+                if name.lower() in direct_dependencies_name:
+                    dependencies[name] = f"=={version}"
+            yaml_path = create_env_yaml(
+                channels=conda_channels,
+                output=Path(tmp_dir) / "env.yaml",
+                dependencies=dependencies,
+            )
+            run_lock(
+                [yaml_path],
+                conda_exe=str(c.conda_path.resolve()),
+                platforms=[platform],
+            )
+        return combine_conda_lock_files(tmp_dir, list(platforms))
 
 
 def _add_app_lockfile_metadata(lockfile: Path):
     lock_content = lockfile.read_text()
     if "@EXPLICIT" not in lock_content:
-        raise SenvMalformedAppLockFile("No @EXPLICIT found in lock file")
+        raise SenvxMalformedAppLockFile("No @EXPLICIT found in lock file")
     lock_header, tars = lock_content.split("@EXPLICIT", 1)
     c = PyProject.get()
     metadata = LockFileMetaData(
         package_name=c.package_name,
         entry_points=list(c.senv.scripts.keys()),
-        version=c.senv.version,
     )
     meta_json = (
         "\n".join([f"# {l}" for l in metadata.json(indent=2).splitlines()]) + "\n"
@@ -174,17 +107,3 @@ def _add_app_lockfile_metadata(lockfile: Path):
         + "@EXPLICIT\n"
         + tars
     )
-
-
-def _read_metadata_from_lockfile(lockfile: Path) -> LockFileMetaData:
-    lock_content = lockfile.read_text()
-    if "@METADATA_INIT" not in lock_content or "@METADATA_END" not in lock_content:
-        raise SenvMalformedAppLockFile("No @METADATA keys required")
-
-    commented_metadata = lock_content.split("@METADATA_INIT", 1)[1].rsplit(
-        "@METADATA_END"
-    )[0]
-    metadata_json = "\n".join(
-        [l.lstrip("#").strip() for l in commented_metadata.splitlines()]
-    ).strip()
-    return LockFileMetaData.parse_raw(metadata_json)

@@ -1,4 +1,4 @@
-name: senvx
+name: senvx-publish
 on:
   push:
     tags:
@@ -27,7 +27,6 @@ jobs:
       - name: install senv
         shell: bash -l {0}
         run: |
-          which python
           pip install senv
       - name: install senvx virtual env
         shell: bash -l {0}
