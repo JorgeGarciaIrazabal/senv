@@ -33,7 +33,7 @@ jobs:
         run: |
           cd senvx
           # remove
-          senv venv install
+          senv env install
 
       - name: create installer
         shell: bash -l {0}

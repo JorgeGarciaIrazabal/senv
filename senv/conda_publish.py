@@ -17,12 +17,12 @@ from senv.utils import cd_tmp_dir
 
 
 def set_conda_build_path():
-    PyProject.get().senv.conda_build_path.mkdir(parents=True, exist_ok=True)
-    os.environ["CONDA_BLD_PATH"] = str(PyProject.get().senv.conda_build_path)
+    PyProject.get().senv.package.conda_build_path.mkdir(parents=True, exist_ok=True)
+    os.environ["CONDA_BLD_PATH"] = str(PyProject.get().senv.package.conda_build_path)
 
 
 def publish_conda(username: str, password: str, repository_url: str):
-    conda_dist = PyProject.get().senv.conda_build_path
+    conda_dist = PyProject.get().senv.package.conda_build_path
     for tar_path in conda_dist.glob(f"*/{PyProject.get().package_name}*.tar.bz2"):
         package = tar_path.name
         arch = tar_path.parent.name

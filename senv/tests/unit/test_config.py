@@ -13,24 +13,24 @@ from senv.utils import cd
 def test_config_defaults_get_populated():
     config_dict = {
         "tool": {
-            "senv": {"venv": {"name": "my_virtual_environment"}, "name": "test_name"}
+            "senv": {"env": {"name": "my_virtual_environment"}, "name": "test_name"}
         }
     }
 
     config = PyProject(**config_dict)
-    assert config.senv.venv.name == "my_virtual_environment"
-    assert isinstance(config.senv.venv.build_system, BuildSystem)
-    assert isinstance(config.senv.venv.conda_lock_platforms, set)
+    assert config.senv.env.name == "my_virtual_environment"
+    assert isinstance(config.senv.env.build_system, BuildSystem)
+    assert isinstance(config.senv.env.conda_lock_platforms, set)
 
 
 def test_config_build_system_has_to_be_enum():
     config_dict = {
-        "tool": {"senv": {"name": "test_name", "venv": {"build-system": "poetry"}}}
+        "tool": {"senv": {"name": "test_name", "env": {"build-system": "poetry"}}}
     }
     config = PyProject(**config_dict)
-    assert config.senv.venv.build_system == BuildSystem.POETRY
+    assert config.senv.env.build_system == BuildSystem.POETRY
 
-    config_dict["tool"]["senv"]["venv"]["build-system"] = "no_build_system"
+    config_dict["tool"]["senv"]["env"]["build-system"] = "no_build_system"
     with pytest.raises(ValueError):
         PyProject(**config_dict)
 
@@ -121,7 +121,9 @@ def test_conda_build_dir_can_not_be_in_project(tmp_path):
         "tool": {
             "senv": {
                 "name": "senv3",
-                "conda-build-path": "./dist",
+                "package": {
+                    "conda-build-path": "./dist",
+                },
             },
         }
     }
@@ -164,7 +166,7 @@ def test_values_in_poetry_gets_populated_to_senv():
     assert config.senv.description == "poetry2"
 
 
-def test_venv_name_default_to_package_name():
+def test_env_name_default_to_package_name():
     config_dict: Dict[str, Any] = {
         "tool": {
             "senv": {
@@ -173,7 +175,7 @@ def test_venv_name_default_to_package_name():
         }
     }
     config = PyProject(**config_dict)
-    assert config.venv.name == "p_name"
-    config_dict["tool"]["senv"]["venv"] = {"name": "venv_name"}
+    assert config.env.name == "p_name"
+    config_dict["tool"]["senv"]["env"] = {"name": "env_name"}
     config2 = PyProject(**config_dict)
-    assert config2.venv.name == "venv_name"
+    assert config2.env.name == "env_name"

@@ -23,7 +23,7 @@ def test_set_config_add_value_to_pyproject(temp_pyproject, cli_runner):
             "-f",
             str(temp_pyproject),
             "set",
-            "venv.conda-lock-platforms",
+            "env.conda-lock-platforms",
             "linux-64",
         ],
         catch_exceptions=False,
@@ -32,7 +32,7 @@ def test_set_config_add_value_to_pyproject(temp_pyproject, cli_runner):
     assert result.exit_code == 0
 
     PyProject.read_toml(temp_pyproject)
-    assert PyProject.get().senv.venv.conda_lock_platforms == {"linux-64"}
+    assert PyProject.get().senv.env.conda_lock_platforms == {"linux-64"}
 
 
 def test_set_config_with_wrong_value_does_not_change_pyproject(
@@ -62,7 +62,7 @@ def test_remove_config_key_removes_it_from_file(temp_pyproject, cli_runner):
         [
             "config",
             "set",
-            "venv.build-system",
+            "env.build-system",
             "poetry",
             "-f",
             str(temp_pyproject),
@@ -74,12 +74,12 @@ def test_remove_config_key_removes_it_from_file(temp_pyproject, cli_runner):
         [
             "config",
             "remove",
-            "venv.build-system",
+            "env.build-system",
             "-f",
             str(temp_pyproject),
         ],
     )
 
     assert (
-        PyProject.read_toml(temp_pyproject).senv.venv.build_system == BuildSystem.CONDA
+        PyProject.read_toml(temp_pyproject).senv.env.build_system == BuildSystem.CONDA
     )

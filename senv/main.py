@@ -6,7 +6,7 @@ import click
 import typer
 from ensureconda import ensureconda
 
-from senv.commands import package, settings_writer, venv
+from senv.commands import env, package, settings_writer
 from senv.pyproject import BuildSystem, PyProject
 
 
@@ -15,6 +15,7 @@ class AliasedGroup(click.Group):
         aliases_map = {
             "c": "config",
             "p": "package",
+            "e": "env",
         }
         aliased_cmd_name = aliases_map.get(cmd_name, cmd_name)
         rv = click.Group.get_command(self, ctx, aliased_cmd_name)
@@ -34,10 +35,10 @@ def pyproject_callback(
 
 app = typer.Typer(cls=AliasedGroup)
 app.add_typer(
-    venv.app,
-    name="venv",
+    env.app,
+    name="env",
     no_args_is_help=True,
-    help="Create and manage you virtual environment",
+    help="{alias 'e'} Create and manage you development virtual environment",
     callback=pyproject_callback,
 )
 app.add_typer(
@@ -117,9 +118,9 @@ def init(
 
 # renaming commands for documentation, this will not be used in production
 
-_venv_command = typer.main.get_command(venv.app)
-_venv_command.name = "senv venv"
-venv_command = _venv_command
+_env_command = typer.main.get_command(env.app)
+_env_command.name = "senv env"
+env_command = _env_command
 
 _config_command = typer.main.get_command(settings_writer.app)
 _config_command.name = "senv config"

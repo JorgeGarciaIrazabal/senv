@@ -15,14 +15,14 @@ def temp_pyproject(build_temp_pyproject):
     return build_temp_pyproject(PYPROJECT_TOML)
 
 
-def test_venv_locks_builds_the_lock_files_in_default_venv_lock_files(
+def test_env_locks_builds_the_lock_files_in_default_env_lock_files(
     temp_pyproject, cli_runner
 ):
     with cd(temp_pyproject.parent):
         result = cli_runner.invoke(
             app,
             [
-                "venv",
+                "env",
                 "-f",
                 str(temp_pyproject),
                 "lock",
@@ -32,23 +32,23 @@ def test_venv_locks_builds_the_lock_files_in_default_venv_lock_files(
             catch_exceptions=False,
         )
         assert result.exit_code == 0
-        lock_file = PyProject.get().senv.venv.__fields__["conda_venv_lock_path"].default
+        lock_file = PyProject.get().senv.env.__fields__["conda_lock_path"].default
         assert lock_file.exists()
 
         combined_lock = CombinedCondaLock.parse_file(lock_file)
         assert set(combined_lock.platform_tar_links.keys()) == {"linux-64"}
 
 
-def test_venv_locks_builds_the_lock_files_in_the_configured_directory(
+def test_env_locks_builds_the_lock_files_in_the_configured_directory(
     temp_pyproject, cli_runner
 ):
     lock_file = temp_pyproject.parent / "my_lock_folder"
     PyProject.read_toml(temp_pyproject)
-    set_new_setting_value(AllowedConfigKeys.CONDA_VENV_LOCK_PATH, str(lock_file))
+    set_new_setting_value(AllowedConfigKeys.CONDA_ENV_LOCK_PATH, str(lock_file))
     result = cli_runner.invoke(
         app,
         [
-            "venv",
+            "env",
             "-f",
             str(temp_pyproject),
             "lock",

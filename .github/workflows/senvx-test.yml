@@ -28,12 +28,12 @@ jobs:
         run: |
           cd senv/senvx
           # remove
-          senv venv install
+          senv env install
 
       - name: run tests
         shell: bash -l {0}
         run: |
           cd senv/senvx
-          senv venv run pytest senvx --junit-xml pytest.xml
+          senv env run pytest senvx --junit-xml pytest.xml
 
 

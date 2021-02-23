@@ -199,12 +199,12 @@ def pyproject_to_meta(
     )
 
 
-def pyproject_to_conda_venv_dict() -> Dict:
+def pyproject_to_conda_env_dict() -> Dict:
     channels = PyProject.get().senv.conda_channels
     dependencies = _get_dependencies_from_pyproject(include_dev_dependencies=True)
 
     return dict(
-        name=PyProject.get().venv.name, channels=channels, dependencies=dependencies
+        name=PyProject.get().env.name, channels=channels, dependencies=dependencies
     )
 
 

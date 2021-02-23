@@ -121,16 +121,16 @@ You can define this along with the conda channels and other things in the pyproj
 <div class="termy">
 
 ```console
-$ senv venv install
+$ senv env install
 generating lockfile for win-64
 generating lockfile for osx-64
 generating lockfile for linux-64
 
 syncing environment
 ---> 100%
-activate your environment running `senv venv shell`
+activate your environment running `senv env shell`
 ```
 
 </div>
 
-Learn more about the [venv](docs/venv.md), [config](docs/config.md), and [package](docs/package.md) commands
+Learn more about the [env](docs/env.md), [config](docs/config.md), and [package](docs/package.md) commands
