@@ -1,5 +1,9 @@
 # pyproject.toml
 
+Senv allows to configure your virtual environment and your publishing configuration through the `pyproject.toml` file
+
+Bellow are described all the properties you can configure in this file.
+
 ## configuration
 
 | namespace | name | type | default | description |

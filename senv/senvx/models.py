@@ -10,7 +10,7 @@ class LockFileMetaData(BaseModel):
     package_name: Optional[str] = None
     entry_points: List[str] = Field(default_factory=list)
     version: Optional[str] = None
-    create_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
 class CombinedCondaLock(BaseModel):

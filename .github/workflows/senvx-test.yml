@@ -21,13 +21,12 @@ jobs:
       - name: install senv
         shell: bash -l {0}
         run: |
-          conda install -c jorgegarciairazabal senv
+          conda install senv==0.0.0a8 -y
 
       - name: install senvx virtual env
         shell: bash -l {0}
         run: |
           cd senv/senvx
-          # remove
           senv env install
 
       - name: run tests

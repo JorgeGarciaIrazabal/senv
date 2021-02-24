@@ -1,11 +1,14 @@
 import os
 import subprocess
 from pathlib import Path
+from shutil import which
 from typing import List
 
 import requests
+import typer
 from conda_lock.conda_lock import run_lock
 from conda_lock.src_parser.pyproject_toml import normalize_pypi_name
+from senvx.main import install_from_lock
 
 from senv.errors import SenvNotAllPlatformsInBaseLockFile
 from senv.log import log
@@ -23,12 +26,28 @@ def set_conda_build_path():
 
 def publish_conda(username: str, password: str, repository_url: str):
     conda_dist = PyProject.get().senv.package.conda_build_path
-    for tar_path in conda_dist.glob(f"*/{PyProject.get().package_name}*.tar.bz2"):
+    files_to_upload = list(
+        conda_dist.glob(
+            f"*/{PyProject.get().package_name}-{PyProject.get().version}*.tar.bz2"
+        )
+    )
+    if len(files_to_upload) == 0:
+        log.warning(
+            f'No files found to upload in "{conda_dist}",'
+            " you need to build the package before uploading it"
+        )
+        raise typer.Abort()
+
+    # todo we might need to be more specific here
+    if repository_url.endswith("anaconda.org"):
+        return publish_conda_to_anaconda_org(username, password, files_to_upload)
+
+    for tar_path in files_to_upload:
         package = tar_path.name
         arch = tar_path.parent.name
         dest = f"{repository_url}/{arch}/{package}"
         resp = requests.head(dest)
-        if resp.status_code == 404:
+        if resp.status_code != 404:
             log.warning("Object already exists not reuploading...")
         else:
             subprocess.check_call(
@@ -40,6 +59,29 @@ def publish_conda(username: str, password: str, repository_url: str):
                     dest,
                 ],
             )
+
+
+def publish_conda_to_anaconda_org(
+    username: str, password: str, files_to_upload: List[Path]
+):
+    if which("anaconda") is None:
+        if not typer.confirm(
+            "anaconda not found, Do you want install a locked version with senvx?"
+        ):
+            raise typer.Abort()
+        install_from_lock(
+            Path(__file__).parent.parent / "anaconda_client_locked/conda_env.lock.json"
+        )
+    if which("anaconda") is None:
+        raise typer.Abort("Failed installing anaconda")
+
+    # todo maybe to intrusive?
+    subprocess.check_call(["anaconda", "logout"])
+    subprocess.check_call(
+        ["anaconda", "login", "--username", username, "--password", password]
+    )
+    for file_to_upload in files_to_upload:
+        subprocess.check_call(["anaconda", "upload", str(file_to_upload.resolve())])
 
 
 def generate_app_lock_file_based_on_tested_lock_path(

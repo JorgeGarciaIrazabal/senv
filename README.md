@@ -45,7 +45,7 @@ Successfully installed senv
 <div class="termy">
 
 ```console
-$ curl {senv_url} --output senv
+$ curl {senvx_url} --output senvx
 $ senvx install senv-locked
 ---> 100%
 Successfully installed senv

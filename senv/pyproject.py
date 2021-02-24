@@ -92,7 +92,7 @@ class _Senv(BaseModel):
     env: _SenvEnv = Field(_SenvEnv())
     package: _SenvPackage = Field(_SenvPackage())
     build_system: Optional[BuildSystem] = Field(
-        None,
+        BuildSystem.CONDA,
         alias="build-system",
         description="Default system used to build the virtual environment and the package",
     )

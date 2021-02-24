@@ -70,7 +70,7 @@ def publish_package(
     if build_system == BuildSystem.POETRY:
         with cd(PyProject.get().config_path.parent):
             repository_url = (
-                repository_url or PyProject.get().senv.poetry_publish_repository
+                repository_url or PyProject.get().senv.package.poetry_publish_repository
             )
             if repository_url is not None:
                 subprocess.check_call(
@@ -90,7 +90,6 @@ def publish_package(
             repository_url = (
                 repository_url or PyProject.get().senv.package.conda_publish_channel
             )
-            # todo, this is super specific to our case, we need to make this more generic
             if repository_url is None:
                 raise NotImplementedError(
                     "repository_url is required to publish a conda environment. "

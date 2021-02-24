@@ -22,7 +22,7 @@ jobs:
       - name: Install senv
         shell: bash -l {0}
         run: |
-          conda install senv -y
+          conda install senv==0.0.0a8 -y
 
       - name: Install Dependencies
         shell: bash -l {0}

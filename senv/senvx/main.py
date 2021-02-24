@@ -5,7 +5,7 @@ from json import JSONDecodeError
 from pathlib import Path
 from sys import platform
 from tempfile import TemporaryDirectory
-from typing import List, Optional
+from typing import List, Optional, Union
 
 import filelock
 import pydantic
@@ -29,12 +29,15 @@ def current_platform() -> str:
         raise NotImplementedError(f"Platform {platform} not supported")
 
 
-def _install_from_lock_url(
-    lock_url: str, package_name: Optional[str], entry_points: List[str]
+def install_from_lock(
+    lock: Union[str, Path], package_name: Optional[str] = None, entry_points=None
 ) -> None:
     with TemporaryDirectory(prefix="senvx-") as tmp_dir:
-        lock_path = Path(tmp_dir, "lock_file.lock")
-        lock_path.write_bytes(requests.get(lock_url, allow_redirects=True).content)
+        if isinstance(lock, Path) or Path(lock).exists():
+            lock_path = Path(str(lock))
+        else:
+            lock_path = Path(tmp_dir, "lock_file.lock.json")
+            lock_path.write_bytes(requests.get(lock, allow_redirects=True).content)
 
         metadata = _read_metadata(lock_path, package_name, entry_points)
         installation_path = (
@@ -74,30 +77,34 @@ def _create_entry_points_symlinks(installation_path, metadata):
 
 def _create_conda_environment(lock_path, metadata, installation_path):
     conda_exe = ensureconda(no_install=True, micromamba=False, mamba=False)
-    try:
-        combined_lock = CombinedCondaLock.parse_file(lock_path)
-        lock_path.write_text(
-            "@EXPLICIT\n"
-            + "\n".join(combined_lock.platform_tar_links[current_platform()])
+    with TemporaryDirectory(prefix="senvx-") as tmp_dir:
+        conda_lock_path = Path(tmp_dir, "lock_file.lock")
+        try:
+            combined_lock = CombinedCondaLock.parse_file(lock_path)
+            conda_lock_path.write_text(
+                "@EXPLICIT\n"
+                + "\n".join(combined_lock.platform_tar_links[current_platform()])
+            )
+        except (pydantic.ValidationError, JSONDecodeError):
+            # if we can not parse the file, it might be a standard conda lock file,
+            # trying to install it anyway
+            typer.echo(
+                "Warning: No combined lock file, trying to install it directly with conda"
+            )
+        subprocess.check_call(
+            [
+                conda_exe,
+                "create",
+                "-y",
+                "--prefix",
+                str(installation_path),
+                "--file",
+                str(conda_lock_path.resolve()),
+            ]
         )
-    except (pydantic.ValidationError, JSONDecodeError):
-        # if we can not parse the file, it might be a standard conda lock file,
-        # trying to install it anyway
         typer.echo(
-            "Warning: No combined lock file, trying to install it directly with conda"
+            f"Installed {metadata.package_name} in {installation_path.resolve()}"
         )
-    subprocess.check_call(
-        [
-            conda_exe,
-            "create",
-            "-y",
-            "--prefix",
-            str(installation_path),
-            "--file",
-            str(lock_path.resolve()),
-        ]
-    )
-    typer.echo(f"Installed {metadata.package_name} in {installation_path.resolve()}")
 
 
 def _handle_entry_points_conflicts(metadata):
@@ -153,7 +160,7 @@ def install(
     app_path.mkdir(parents=True, exist_ok=True)
     with filelock.FileLock(str(app_path / "installing.lock"), timeout=60 * 5):
         if lock_url:
-            _install_from_lock_url(lock_url, package_name, entry_points)
+            install_from_lock(lock_url, package_name, entry_points)
 
 
 if __name__ == "__main__":
