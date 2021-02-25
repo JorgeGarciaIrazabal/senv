@@ -72,22 +72,29 @@ def test_build_simple_pyproject_with_conda_even_with_poetry_build_system_in_pypr
     assert result.exit_code == 0, result.exception
 
 
-def test_publish_conda_raises_exception_if_repository_url_is_null(
-    temp_small_conda_pyproject, cli_runner
-):
+def test_publish_requires_username_and_password(temp_small_conda_pyproject, cli_runner):
+    args = [
+        "package",
+        "-f",
+        str(temp_small_conda_pyproject),
+        "publish",
+    ]
     with cd(temp_small_conda_pyproject.parent):
         result = cli_runner.invoke(
             app,
-            [
-                "package",
-                "-f",
-                str(temp_small_conda_pyproject),
-                "publish",
-            ],
-            input="y",
+            args,
         )
-    assert result.exit_code == 1
-    assert isinstance(result.exception, NotImplementedError)
+        assert result.exit_code == 2, result.output
+        result = cli_runner.invoke(
+            app,
+            args + ["-u", "username"],
+        )
+        assert result.exit_code == 2, result.output
+        result = cli_runner.invoke(
+            app,
+            args + ["-p", "password"],
+        )
+        assert result.exit_code == 2, result.output
 
 
 def test_lock_appdirs_simple_does_not_include_fake_dependencies(

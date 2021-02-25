@@ -79,8 +79,10 @@ class _SenvPackage(BaseModel):
     conda_build_path: Path = Field(
         None, alias="conda-build-path", env="SENV_CONDA_BUILD_PATH"
     )
-    conda_publish_channel: Optional[str] = Field(
-        None, alias="conda-publish-channel", env="SENV_CONDA_PUBLISH_CHANNEL"
+    conda_publish_url: Optional[str] = Field(
+        "https://anaconda.org",
+        alias="conda-publish-channel",
+        env="SENV_CONDA_PUBLISH_URL",
     )
     conda_lock_path: Path = Field(Path("package_locks_dir"), alias="conda-lock-path")
     poetry_publish_repository: Optional[str] = Field(
@@ -139,11 +141,11 @@ class _Senv(BaseModel):
         description="(Poetry Only) A list of packages"
         " and modules to include in the final distribution",
     )
+    include: Optional[List[str]] = Field(
+        None,
+        description="A list of patterns that will be included in the final package",
+    )
     # todo
-    # include: Optional[List[str]] = Field(
-    #     None,
-    #     description="A list of patterns that will be included in the final package",
-    # )
     # exclude: Optional[List[str]] = Field(
     #     None,
     #     description="A list of patterns that will be excluded in the final package",

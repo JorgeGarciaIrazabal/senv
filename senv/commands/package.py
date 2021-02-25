@@ -20,7 +20,7 @@ from senv.pyproject_to_conda import (
     generate_combined_conda_lock_file,
     pyproject_to_recipe_yaml,
 )
-from senv.utils import cd, tmp_env
+from senv.utils import auto_confirm_yes, build_yes_option, cd, tmp_env
 
 app = typer.Typer(add_completion=False)
 
@@ -60,44 +60,51 @@ def build_package(
 def publish_package(
     build_system: BuildSystem = typer.Option(get_default_package_build_system),
     python_version: Optional[str] = None,
-    build: bool = False,
+    build: bool = typer.Option(False, "--build", "-b"),
     repository_url: Optional[str] = None,
-    username: str = typer.Option(None, envvar="SENV_PUBLISHER_USERNAME"),
-    password: str = typer.Option(None, envvar="SENV_PUBLISHER_PASSWORD"),
+    username: str = typer.Option(
+        ..., "--username", "-u", envvar="SENV_PUBLISHER_USERNAME"
+    ),
+    password: str = typer.Option(
+        ..., "--password", "-p", envvar="SENV_PUBLISHER_PASSWORD"
+    ),
+    yes: bool = build_yes_option(),
 ):
-    if build:
-        build_package(build_system=build_system, python_version=python_version)
-    if build_system == BuildSystem.POETRY:
-        with cd(PyProject.get().config_path.parent):
-            repository_url = (
-                repository_url or PyProject.get().senv.package.poetry_publish_repository
-            )
-            if repository_url is not None:
-                subprocess.check_call(
-                    [
-                        PyProject.get().poetry_path,
-                        "config",
-                        f"repositories.senv_{PyProject.get().package_name}",
-                        repository_url,
-                    ]
+    with auto_confirm_yes(yes):
+        if build:
+            build_package(build_system=build_system, python_version=python_version)
+        if build_system == BuildSystem.POETRY:
+            with cd(PyProject.get().config_path.parent):
+                repository_url = (
+                    repository_url
+                    or PyProject.get().senv.package.poetry_publish_repository
                 )
-            args = [PyProject.get().poetry_path, "publish"]
-            if username and password:
-                args += ["--username", username, "--password", password]
-            subprocess.check_call(args)
-    elif build_system == BuildSystem.CONDA:
-        with cd(PyProject.get().config_path.parent):
-            repository_url = (
-                repository_url or PyProject.get().senv.package.conda_publish_channel
-            )
-            if repository_url is None:
-                raise NotImplementedError(
-                    "repository_url is required to publish a conda environment. "
-                    "Only private channels are currently allowed"
+                if repository_url is not None:
+                    subprocess.check_call(
+                        [
+                            PyProject.get().poetry_path,
+                            "config",
+                            f"repositories.senv_{PyProject.get().package_name}",
+                            repository_url,
+                        ]
+                    )
+                args = [PyProject.get().poetry_path, "publish"]
+                if username and password:
+                    args += ["--username", username, "--password", password]
+                subprocess.check_call(args)
+        elif build_system == BuildSystem.CONDA:
+            with cd(PyProject.get().config_path.parent):
+                repository_url = (
+                    repository_url or PyProject.get().senv.package.conda_publish_url
                 )
-            publish_conda(username, password, repository_url)
-    else:
-        raise NotImplementedError()
+                if repository_url is None:
+                    # todo add logic to publish to conda-forge
+                    raise NotImplementedError(
+                        "repository_url is required to publish a conda environment. "
+                    )
+                publish_conda(username, password, repository_url)
+        else:
+            raise NotImplementedError()
 
 
 @app.command(name="lock")

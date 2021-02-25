@@ -8,15 +8,15 @@ import requests
 import typer
 from conda_lock.conda_lock import run_lock
 from conda_lock.src_parser.pyproject_toml import normalize_pypi_name
-from senvx.main import install_from_lock
 
 from senv.errors import SenvNotAllPlatformsInBaseLockFile
 from senv.log import log
 from senv.pyproject import PyProject
 from senv.pyproject_to_conda import combine_conda_lock_files, create_env_yaml
 from senv.senvx.errors import SenvxMalformedAppLockFile
+from senv.senvx.main import install_from_lock
 from senv.senvx.models import CombinedCondaLock, LockFileMetaData
-from senv.utils import cd_tmp_dir
+from senv.utils import cd_tmp_dir, confirm
 
 
 def set_conda_build_path():
@@ -65,12 +65,15 @@ def publish_conda_to_anaconda_org(
     username: str, password: str, files_to_upload: List[Path]
 ):
     if which("anaconda") is None:
-        if not typer.confirm(
-            "anaconda not found, Do you want install a locked version with senvx?"
-        ):
-            raise typer.Abort()
+        confirm(
+            "anaconda not found, Do you want install a locked version with senvx?",
+            abort=True,
+        )
         install_from_lock(
-            Path(__file__).parent.parent / "anaconda_client_locked/conda_env.lock.json"
+            Path(__file__).parent
+            / "dynamic_dependencies"
+            / "anaconda_client_locked"
+            / "conda_env.lock.json"
         )
     if which("anaconda") is None:
         raise typer.Abort("Failed installing anaconda")

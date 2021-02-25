@@ -4,7 +4,7 @@ build-backend = "poetry.masonry.api"
 
 [tool.poetry]
 name = "senv"
-version = "0.0.0a8"
+version = "0.0.0a1"
 description = "Senv (Super Environment) is a tool to simplify dependency management, packaging, distribution, and consumption of your applications and libraries."
 authors = ["Jorge <jorge.girazabal@gmail.com>"]
 license = "MIT"

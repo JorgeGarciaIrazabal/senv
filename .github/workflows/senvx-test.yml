@@ -21,7 +21,7 @@ jobs:
       - name: install senv
         shell: bash -l {0}
         run: |
-          conda install senv==0.0.0a8 -y
+          conda install senv==0.0.0a1 -y
 
       - name: install senvx virtual env
         shell: bash -l {0}
@@ -33,6 +33,6 @@ jobs:
         shell: bash -l {0}
         run: |
           cd senv/senvx
-          senv env run pytest senvx --junit-xml pytest.xml
+          senv env run pytest --junit-xml pytest.xml
 
 

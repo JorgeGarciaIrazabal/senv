@@ -22,7 +22,7 @@ jobs:
       - name: Install senv
         shell: bash -l {0}
         run: |
-          conda install senv==0.0.0a8 -y
+          conda install senv==0.0.0a1 -y
 
       - name: Install Dependencies
         shell: bash -l {0}
@@ -45,9 +45,10 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           files: pytest.xml
 
-      - name: Publish to pypi
+      - name: Publish to pypi and anaconda
         shell: bash -l {0}
         if: startsWith(github.ref, 'refs/tags/')
-        run:
-          senv package publish --username ${{ secrets.PYPI_USERNAME }} --password ${{ secrets.PYPI_PASSWORD }} --build
+        run: |
+          senv package publish -u ${{ secrets.PYPI_USERNAME }} -p ${{ secrets.PYPI_PASSWORD }} -b --build-system poetry
+          senv package publish -u ${{ secrets.PYPI_USERNAME }} -p ${{ secrets.PYPI_PASSWORD }} -b --build-system conda
 
