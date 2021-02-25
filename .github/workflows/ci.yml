@@ -49,6 +49,6 @@ jobs:
         shell: bash -l {0}
         if: startsWith(github.ref, 'refs/tags/')
         run: |
-          senv package publish -u ${{ secrets.PYPI_USERNAME }} -p ${{ secrets.PYPI_PASSWORD }} -b --build-system poetry
-          senv package publish -u ${{ secrets.PYPI_USERNAME }} -p ${{ secrets.PYPI_PASSWORD }} -b --build-system conda
+          senv package publish -u ${{ secrets.PYPI_USERNAME }} -p ${{ secrets.PYPI_PASSWORD }} -b --build-system poetry -y
+          senv package publish -u ${{ secrets.PYPI_USERNAME }} -p ${{ secrets.PYPI_PASSWORD }} -b --build-system conda -y
 

@@ -51,9 +51,9 @@ jobs:
           file_glob: true
 
       - name: Publish to pypi and anaconda
-          shell: bash -l {0}
-          run: |
-            cd senv/senvx
-            senv package publish -u ${{ secrets.PYPI_USERNAME }} -p ${{ secrets.PYPI_PASSWORD }} -b --build-system poetry
-            senv package publish -u ${{ secrets.PYPI_USERNAME }} -p ${{ secrets.PYPI_PASSWORD }} -b --build-system conda
+        shell: bash -l {0}
+        run: |
+          cd senv/senvx
+          senv package publish -u ${{ secrets.PYPI_USERNAME }} -p ${{ secrets.PYPI_PASSWORD }} -b --build-system poetry -y
+          senv package publish -u ${{ secrets.PYPI_USERNAME }} -p ${{ secrets.PYPI_PASSWORD }} -b --build-system conda -y
 
