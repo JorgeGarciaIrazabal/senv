@@ -1,3 +1,4 @@
+import shutil
 import subprocess
 from pathlib import Path
 from typing import List, Optional
@@ -10,19 +11,29 @@ from senv.command_lambdas import (
     get_default_package_build_system,
 )
 from senv.conda_publish import (
+    build_conda_package_from_recipe,
     generate_app_lock_file_based_on_tested_lock_path,
     publish_conda,
-    set_conda_build_path,
 )
 from senv.log import log
 from senv.pyproject import BuildSystem, PyProject
 from senv.pyproject_to_conda import (
     generate_combined_conda_lock_file,
+    locked_package_to_recipe_yaml,
     pyproject_to_recipe_yaml,
 )
-from senv.utils import auto_confirm_yes, build_yes_option, cd, tmp_env
+from senv.utils import auto_confirm_yes, build_yes_option, cd, cd_tmp_dir, tmp_env
 
 app = typer.Typer(add_completion=False)
+
+based_on_tested_lock_file_option = typer.Option(
+    None,
+    help="Create the lock file with the same direct dependencies"
+    " as the ones pinned in the lock template provided.\n"
+    "For conda locks, this template should include `{platform}`"
+    " so each platform output can be based on the right lock file.\n"
+    "More information in {Todo: add link to documentation}",
+)
 
 
 @app.command(name="build")
@@ -36,10 +47,6 @@ def build_package(
             subprocess.check_call([PyProject.get().poetry_path, "build"])
     elif build_system == BuildSystem.CONDA:
         with tmp_env():
-            set_conda_build_path()
-            args = ["conda-mambabuild", "--override-channels"]
-            for c in PyProject.get().senv.conda_channels:
-                args += ["--channel", c]
             meta_path = (
                 PyProject.get().config_path.parent / "conda.recipe" / "meta.yaml"
             )
@@ -47,11 +54,7 @@ def build_package(
                 python_version=python_version,
                 output=meta_path,
             )
-            if python_version:
-                args.extend(["--python", python_version])
-            result = subprocess.run(args + [str(meta_path.parent)])
-            if result.returncode != 0:
-                raise typer.Abort("Failed building conda package")
+            build_conda_package_from_recipe(meta_path, python_version)
     else:
         raise NotImplementedError()
 
@@ -115,16 +118,12 @@ def lock_app(
         case_sensitive=False,
         help="conda platforms, for example osx-64 and/or linux-64",
     ),
-    based_on_tested_lock_file: Optional[Path] = typer.Option(
-        None,
-        help="Create the lock file with the same direct dependencies"
-        " as the ones pinned in the lock template provided.\n"
-        "For conda locks, this template should include `{platform}`"
-        " so each platform output can be based on the right lock file.\n"
-        "More information in {Todo: add link to documentation}",
-    ),
+    based_on_tested_lock_file: Optional[Path] = based_on_tested_lock_file_option,
     conda_channels: Optional[List[str]] = typer.Option(
         get_conda_channels,
+    ),
+    output: Path = typer.Option(
+        lambda: PyProject.get().senv.package.conda_lock_path, "--output", "-o"
     ),
 ):
     c = PyProject.get()
@@ -132,7 +131,7 @@ def lock_app(
     if build_system == BuildSystem.POETRY:
         raise NotImplementedError()
     elif build_system == BuildSystem.CONDA:
-        c.senv.package.conda_lock_path.parent.mkdir(exist_ok=True, parents=True)
+        output.parent.mkdir(exist_ok=True, parents=True)
         if based_on_tested_lock_file is None:
             combined_lock = generate_combined_conda_lock_file(
                 platforms,
@@ -142,7 +141,7 @@ def lock_app(
                     dependencies={c.package_name: f"=={c.version}"},
                 ),
             )
-            c.senv.package.conda_lock_path.write_text(combined_lock.json(indent=2))
+            output.write_text(combined_lock.json(indent=2))
 
         else:
             combined_lock = generate_app_lock_file_based_on_tested_lock_path(
@@ -151,9 +150,53 @@ def lock_app(
                 platforms=platforms,
             )
 
-            c.senv.package.conda_lock_path.write_text(combined_lock.json(indent=2))
-        log.info(
-            f"Package lock file generated in {c.senv.package.conda_lock_path.resolve()}"
-        )
+            output.write_text(combined_lock.json(indent=2))
+        log.info(f"Package lock file generated in {output.resolve()}")
     else:
         raise NotImplementedError()
+
+
+@app.command(name="publish-locked")
+def publish_locked_package(
+    build_system: BuildSystem = typer.Option(get_default_package_build_system),
+    repository_url: Optional[str] = None,
+    username: str = typer.Option(
+        ..., "--username", "-u", envvar="SENV_PUBLISHER_USERNAME"
+    ),
+    password: str = typer.Option(
+        ..., "--password", "-p", envvar="SENV_PUBLISHER_PASSWORD"
+    ),
+    lock_file: Path = typer.Option(
+        lambda: PyProject.get().senv.package.conda_lock_path,
+        "--lock-file",
+        "-l",
+        exists=True,
+    ),
+    yes: bool = build_yes_option(),
+):
+    c: PyProject = PyProject.get()
+    with auto_confirm_yes(yes):
+        if build_system == BuildSystem.POETRY:
+            raise NotImplementedError("publish locked ")
+        elif build_system == BuildSystem.CONDA:
+            with cd_tmp_dir() as tmp_dir:
+                meta_path = tmp_dir / "conda.recipe" / "meta.yaml"
+                temp_lock_path = meta_path.parent / "package_locked_file.lock.json"
+                meta_path.parent.mkdir(parents=True)
+                shutil.copyfile(
+                    str(lock_file.absolute()), str(temp_lock_path.absolute())
+                )
+
+                locked_package_to_recipe_yaml(temp_lock_path, meta_path)
+                build_conda_package_from_recipe(meta_path.absolute())
+
+                with cd(meta_path.parent):
+                    repository_url = repository_url or c.senv.package.conda_publish_url
+                    publish_conda(
+                        username,
+                        password,
+                        repository_url,
+                        package_name=c.package_name_locked,
+                    )
+        else:
+            raise NotImplementedError()

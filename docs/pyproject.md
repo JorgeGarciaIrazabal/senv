@@ -34,5 +34,5 @@ Bellow are described all the properties you can configure in this file.
 | tool.senv.package | build-system | Enum Choices {conda, poetry} |  | Default system used to build the final package. (If not defined, use tool.senv.build_system) |
 | tool.senv.package | conda-build-path | <class 'pathlib.Path'> |  |  |
 | tool.senv.package | conda-publish-channel | <class 'str'> |  |  |
-| tool.senv.package | conda-lock-path | <class 'pathlib.Path'> | package_locks_dir |  |
+| tool.senv.package | conda-lock-path | <class 'pathlib.Path'> | package_locked.lock.json |  |
 | tool.senv.package | poetry-publish-repository | <class 'str'> |  |  |

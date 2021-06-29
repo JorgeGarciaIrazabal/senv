@@ -2,6 +2,7 @@
 import collections
 import json
 import re
+from concurrent.futures import ProcessPoolExecutor
 from io import StringIO
 from pathlib import Path
 from tempfile import NamedTemporaryFile
@@ -153,7 +154,12 @@ def pyproject_to_recipe_yaml(
     output: Path = Path("conda.recipe") / "meta.yaml",
 ) -> Path:
     meta = pyproject_to_meta(python_version=python_version)
+    return meta_to_recipe_yaml(meta=meta, output=output)
 
+
+def meta_to_recipe_yaml(
+    *, meta: CondaMeta, output: Path = Path("conda.recipe") / "meta.yaml"
+) -> Path:
     recipe_dir = output.parent
     recipe_dir.mkdir(parents=True, exist_ok=True)
     _yaml_safe_dump(json.loads(meta.json()), output)
@@ -300,11 +306,36 @@ def generate_combined_conda_lock_file(
     ) as status:
         status.start()
         yaml.safe_dump(env_dict, f)
-        for platform in platforms:
-            run_lock(
-                [Path(f.name)],
-                conda_exe=str(c.conda_path.resolve()),
-                platforms=[platform],
-            )
+        with ProcessPoolExecutor() as executor:
+            for platform in platforms:
+                executor.submit(
+                    run_lock,
+                    [Path(f.name)],
+                    conda_exe=str(c.conda_path.resolve()),
+                    platforms=[platform],
+                )
         status.writeln("combining lock files...")
         return combine_conda_lock_files(tmp_dir, platforms)
+
+
+def locked_package_to_recipe_yaml(lock_file: Path, output: Path):
+    c: PyProject = PyProject.get()
+    license_ = c.senv.license if c.senv.license != "Proprietary" else "INTERNAL"
+    meta = CondaMeta(
+        package=_Package(name=c.package_name_locked, version=c.version),
+        build=_Build(
+            script="echo 'This package is not installable through conda,"
+            " use senvx to install it'"
+        ),
+        source=_Source(path=lock_file.absolute()),
+        requirements=_Requirements(host=[], run=[]),
+        about=_About(
+            home=c.senv.homepage,
+            license=license_,
+            description=c.senv.description,
+            doc_url=c.senv.documentation,
+        ),
+        extra=_Extra(maintainers=c.senv.authors),
+    )
+
+    meta_to_recipe_yaml(meta=meta, output=output)

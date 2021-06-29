@@ -1,8 +1,9 @@
 import os
 import subprocess
+from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 from shutil import which
-from typing import List
+from typing import List, Optional
 
 import requests
 import typer
@@ -24,12 +25,30 @@ def set_conda_build_path():
     os.environ["CONDA_BLD_PATH"] = str(PyProject.get().senv.package.conda_build_path)
 
 
-def publish_conda(username: str, password: str, repository_url: str):
-    conda_dist = PyProject.get().senv.package.conda_build_path
+def build_conda_package_from_recipe(
+    meta_path: Path, python_version: Optional[str] = None
+):
+    set_conda_build_path()
+    args = ["conda-mambabuild", "--override-channels"]
+    for c in PyProject.get().senv.conda_channels:
+        args += ["--channel", c]
+    if python_version:
+        args.extend(["--python", python_version])
+    result = subprocess.run(args + [str(meta_path.parent)])
+    if result.returncode != 0:
+        raise typer.Abort("Failed building conda package")
+
+
+def publish_conda(
+    username: str,
+    password: str,
+    repository_url: str,
+    package_name: Optional[str] = None,
+):
+    c = PyProject.get()
+    conda_dist = c.senv.package.conda_build_path
     files_to_upload = list(
-        conda_dist.glob(
-            f"*/{PyProject.get().package_name}-{PyProject.get().version}*.tar.bz2"
-        )
+        conda_dist.glob(f"*/{package_name or c.package_name}-{c.version}*.tar.bz2")
     )
     if len(files_to_upload) == 0:
         log.warning(
@@ -106,28 +125,30 @@ def generate_app_lock_file_based_on_tested_lock_path(
         )
 
     with cd_tmp_dir() as tmp_dir:
-        for platform in platforms_set:
-            tar_urls = combined_lock.platform_tar_links[platform]
-            # add the current package
-            dependencies = {
-                c.package_name: f"=={c.version}",
-            }
-            # pin version for all direct dependencies
-            for line in tar_urls:
-                channel, dep = line.rsplit("/", 1)
-                name, version, _ = dep.rsplit("-", 2)
-                if name.lower() in direct_dependencies_name:
-                    dependencies[name] = f"=={version}"
-            yaml_path = create_env_yaml(
-                channels=conda_channels,
-                output=Path(tmp_dir) / "env.yaml",
-                dependencies=dependencies,
-            )
-            run_lock(
-                [yaml_path],
-                conda_exe=str(c.conda_path.resolve()),
-                platforms=[platform],
-            )
+        with ProcessPoolExecutor() as executor:
+            for platform in platforms_set:
+                tar_urls = combined_lock.platform_tar_links[platform]
+                # add the current package
+                dependencies = {
+                    c.package_name: f"=={c.version}",
+                }
+                # pin version for all direct dependencies
+                for line in tar_urls:
+                    channel, dep = line.rsplit("/", 1)
+                    name, version, _ = dep.rsplit("-", 2)
+                    if name.lower() in direct_dependencies_name:
+                        dependencies[name] = f"=={version}"
+                yaml_path = create_env_yaml(
+                    channels=conda_channels,
+                    output=Path(tmp_dir) / "env.yaml",
+                    dependencies=dependencies,
+                )
+                executor.submit(
+                    run_lock,
+                    [yaml_path],
+                    conda_exe=str(c.conda_path.resolve()),
+                    platforms=[platform],
+                )
         return combine_conda_lock_files(tmp_dir, list(platforms))
 
 

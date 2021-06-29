@@ -68,7 +68,7 @@ $ senv init
 // (if conda is not found)
 # Install conda [Y/n]: $ Y
 // default build system
-# Default build system [CONDA, poetry]: $ conda
+# Default build system [conda, poetry]: $ conda
 
 ---> 100%
 pyproject.toml created
@@ -93,7 +93,7 @@ pytest = "^6.2.1"
 build-system = "conda"
 ```
 
-It actually supports using **tool.poetry.{any_key}** and plugins like [poetry-dynamic-versioning](https://pypi.org/project/poetry-dynamic-versioning/) should work with senv too.
+Senv also works using **tool.poetry.{any_key}** so plugins like [poetry-dynamic-versioning](https://pypi.org/project/poetry-dynamic-versioning/) work using senv.
 
 ```toml
 [tool.poetry.dependencies]

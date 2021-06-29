@@ -17,6 +17,8 @@ from senv.log import log
 from senv.senvx.models import CombinedCondaLock
 from senv.utils import get_current_platform
 
+LOCKED_PACKAGE_SUFFIX = "__locked"
+
 
 class BuildSystem(str, Enum):
     CONDA = "conda"
@@ -84,7 +86,9 @@ class _SenvPackage(BaseModel):
         alias="conda-publish-channel",
         env="SENV_CONDA_PUBLISH_URL",
     )
-    conda_lock_path: Path = Field(Path("package_locks_dir"), alias="conda-lock-path")
+    conda_lock_path: Path = Field(
+        Path("package_locked.lock.json"), alias="conda-lock-path"
+    )
     poetry_publish_repository: Optional[str] = Field(
         None, alias="poetry-publish-repository", env="SENV_POETRY_PUBLISH_REPOSITORY"
     )
@@ -283,6 +287,10 @@ class PyProject(BaseModel):
     @property
     def package_name(self) -> str:
         return self.senv.name
+
+    @property
+    def package_name_locked(self) -> str:
+        return f"{self.package_name}{LOCKED_PACKAGE_SUFFIX}"
 
     @property
     def python_version(self) -> str:

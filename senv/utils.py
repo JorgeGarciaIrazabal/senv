@@ -3,7 +3,7 @@ import os
 from pathlib import Path
 from sys import platform
 from tempfile import TemporaryDirectory
-from typing import Iterator
+from typing import ContextManager
 
 import typer
 
@@ -23,7 +23,7 @@ def cd(path: Path):
 
 
 @contextlib.contextmanager
-def cd_tmp_dir(prefix="senv_") -> Iterator[Path]:
+def cd_tmp_dir(prefix="senv_") -> ContextManager[Path]:
     with TemporaryDirectory(prefix=prefix) as tmp_dir, cd(Path(tmp_dir)):
         yield Path(tmp_dir)
 

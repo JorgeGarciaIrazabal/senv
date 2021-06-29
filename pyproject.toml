@@ -41,7 +41,8 @@ boa = "^0.3.5"
 [tool.senv]
 conda-channels = [
     "conda-forge",
-    "defaults"
+    "defaults",
+    "jorgegarciairazabal"
 ]
 build-system = "conda"
 
