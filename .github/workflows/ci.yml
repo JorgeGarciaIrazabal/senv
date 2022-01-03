@@ -22,16 +22,16 @@ jobs:
       - name: Install senv
         shell: bash -l {0}
         run: |
-          conda install senv==0.0.0a1 -y
+          conda install senv==0.0.0a1 poetry==1.1.12 -y
 
       - name: Install Dependencies
         shell: bash -l {0}
         run: senv env sync
 
-      - name: Code Quality
-        shell: bash -l {0}
-        run: |
-          senv env run black . --check
+#      - name: Code Quality
+#        shell: bash -l {0}
+#        run: |
+#          senv env run black . --check
 
       - name: Test with pytest
         shell: bash -l {0}

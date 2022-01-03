@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "senv-publish-tools"
+version = "0.1.0"
+
+[tool.senv.dependencies]
+python = "3.8"
+anaconda-client = "^1.6.14"
+boa = "^0.8"
+
+[tool.senv.scripts]
+anaconda = "binstar_client.scripts.cli:main"
+conda-mambabuild = "boa.cli.mambabuild:main"
+
+[tool.senv]
+conda-path = "mamba"
+conda-channels = [
+    "conda-forge",
+    "defaults",
+    "jorgegarciairazabal"
+]

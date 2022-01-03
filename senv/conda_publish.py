@@ -14,10 +14,24 @@ from senv.errors import SenvNotAllPlatformsInBaseLockFile
 from senv.log import log
 from senv.pyproject import PyProject
 from senv.pyproject_to_conda import combine_conda_lock_files, create_env_yaml
-from senv.senvx.errors import SenvxMalformedAppLockFile
-from senv.senvx.main import install_from_lock
-from senv.senvx.models import CombinedCondaLock, LockFileMetaData
+from senvx.errors import SenvxMalformedAppLockFile
+from senvx.main import install_from_lock
+from senvx.models import CombinedCondaLock, LockFileMetaData
 from senv.utils import cd_tmp_dir, confirm
+
+
+def _install_package_dependencies():
+    confirm(
+        "some dependencies are required to publish packages,"
+        " Do you want install them independently using senvx?",
+        abort=True,
+    )
+    install_from_lock(
+        Path(__file__).parent
+        / "dynamic_dependencies"
+        / "senv_package_tools"
+        / "conda_env.lock.json"
+    )
 
 
 def set_conda_build_path():
@@ -29,6 +43,8 @@ def build_conda_package_from_recipe(
     meta_path: Path, python_version: Optional[str] = None
 ):
     set_conda_build_path()
+    if which("conda-mambabuild") is None:
+        _install_package_dependencies()
     args = ["conda-mambabuild", "--override-channels"]
     for c in PyProject.get().senv.conda_channels:
         args += ["--channel", c]
@@ -84,16 +100,7 @@ def publish_conda_to_anaconda_org(
     username: str, password: str, files_to_upload: List[Path]
 ):
     if which("anaconda") is None:
-        confirm(
-            "anaconda not found, Do you want install a locked version with senvx?",
-            abort=True,
-        )
-        install_from_lock(
-            Path(__file__).parent
-            / "dynamic_dependencies"
-            / "anaconda_client_locked"
-            / "conda_env.lock.json"
-        )
+        _install_package_dependencies()
     if which("anaconda") is None:
         raise typer.Abort("Failed installing anaconda")
 

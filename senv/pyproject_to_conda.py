@@ -6,7 +6,6 @@ from concurrent.futures import ProcessPoolExecutor
 from io import StringIO
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from threading import Timer
 from typing import Any, Dict, List, Optional
 
 import yaml
@@ -17,14 +16,13 @@ from conda_lock.src_parser.pyproject_toml import (
     poetry_version_to_conda_version,
     to_match_spec,
 )
-from progress.spinner import PixelSpinner
 from pydantic import BaseModel, Field
 
 from senv.errors import SenvInvalidPythonVersion
 from senv.log import log
 from senv.pyproject import PyProject
-from senv.senvx.models import CombinedCondaLock, LockFileMetaData
-from senv.utils import cd_tmp_dir
+from senvx.models import CombinedCondaLock, LockFileMetaData
+from senv.utils import MySpinner, cd_tmp_dir
 
 version_pattern = re.compile("version='(.*)'")
 
@@ -264,7 +262,7 @@ def create_env_yaml(
 
 def combine_conda_lock_files(
     directory: Path, platforms: List[str]
-) -> CombinedCondaLock:
+) -> "CombinedCondaLock":
     platform_tar_links = {}
     for platform in platforms:
         lock_file = directory / f"conda-{platform}.lock"
@@ -282,38 +280,27 @@ def combine_conda_lock_files(
     return CombinedCondaLock(metadata=metadata, platform_tar_links=platform_tar_links)
 
 
-class MySpinner(PixelSpinner):
-    def __init__(self, message="", **kwargs):
-        super().__init__(message, **kwargs)
-        self._finished = False
-
-    def finish(self):
-        super().finish()
-        self._finished = True
-
-    def start(self):
-        if not self._finished:
-            self.next()
-            Timer(0.3, self.start).start()
-
-
 def generate_combined_conda_lock_file(
     platforms: List[str], env_dict: Dict
-) -> CombinedCondaLock:
+) -> "CombinedCondaLock":
     c = PyProject.get()
     with NamedTemporaryFile(mode="w+") as f, cd_tmp_dir() as tmp_dir, MySpinner(
         "Building lock files..."
     ) as status:
         status.start()
         yaml.safe_dump(env_dict, f)
+        processes = []
         with ProcessPoolExecutor() as executor:
             for platform in platforms:
-                executor.submit(
+                p = executor.submit(
                     run_lock,
                     [Path(f.name)],
                     conda_exe=str(c.conda_path.resolve()),
                     platforms=[platform],
+                    channel_overrides=env_dict["channels"],
+                    kinds=["explicit"],
                 )
+                processes.append(p)
         status.writeln("combining lock files...")
         return combine_conda_lock_files(tmp_dir, platforms)
 

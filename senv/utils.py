@@ -3,9 +3,11 @@ import os
 from pathlib import Path
 from sys import platform
 from tempfile import TemporaryDirectory
+from threading import Timer
 from typing import ContextManager
 
 import typer
+from progress.spinner import PixelSpinner
 
 from senv.errors import SenvNotSupportedPlatform
 
@@ -89,3 +91,18 @@ def get_current_platform() -> str:
         return "win-64"
     else:
         raise SenvNotSupportedPlatform(f"Platform {platform} not supported")
+
+
+class MySpinner(PixelSpinner):
+    def __init__(self, message="", **kwargs):
+        super().__init__(message, **kwargs)
+        self._finished = False
+
+    def finish(self):
+        super().finish()
+        self._finished = True
+
+    def start(self):
+        if not self._finished:
+            self.next()
+            Timer(0.3, self.start).start()

@@ -4,6 +4,7 @@ from contextlib import contextmanager
 from copy import deepcopy
 from enum import Enum
 from pathlib import Path
+from shutil import which
 from tempfile import TemporaryDirectory
 from typing import Any, Dict, List, Optional, Set
 
@@ -14,7 +15,7 @@ from pydantic import BaseModel, Field, PrivateAttr, root_validator, validator
 
 from senv.errors import SenvBadConfiguration
 from senv.log import log
-from senv.senvx.models import CombinedCondaLock
+from senvx.models import CombinedCondaLock
 from senv.utils import get_current_platform
 
 LOCKED_PACKAGE_SUFFIX = "__locked"
@@ -204,7 +205,11 @@ class _Senv(BaseModel):
     @validator("conda_path", "poetry_path")
     def _validate_executable(cls, p: Path):
         if not p.exists():
-            raise ValueError(f"Provided path {p} was not found")
+            resolved_p = which(p)
+            if resolved_p is None:
+                raise ValueError(f"Provided path {p} was not found")
+            else:
+                p = Path(resolved_p).resolve()
         if not os.access(str(p), os.X_OK):
             raise ValueError(f"Provided path {p} is not executable")
         return p

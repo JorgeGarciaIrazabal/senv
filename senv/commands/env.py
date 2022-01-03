@@ -1,5 +1,7 @@
+import os.path
 import subprocess
 from os import environ
+import shlex
 from typing import List
 
 import typer
@@ -11,7 +13,7 @@ from senv.pyproject_to_conda import (
     generate_combined_conda_lock_file,
     pyproject_to_conda_env_dict,
 )
-from senv.shell import SenvShell
+from senv.shell import spawn_shell
 from senv.utils import cd
 
 app = typer.Typer(add_completion=False)
@@ -89,16 +91,26 @@ def sync(build_system: BuildSystem = typer.Option(get_default_env_build_system))
 
 @app.command()
 def shell(build_system: BuildSystem = typer.Option(get_default_env_build_system)):
-    environ["PATH"] = f"{PyProject.get().conda_path.parent}:{environ.get('PATH')}"
+    c = PyProject.get()
+    # conda activate does not work using the conda executable path (I am not sure why)
+    # force adding the conda executable to the path and then call it
+    environ["PATH"] = f"{c.conda_path.parent}{os.path.pathsep}{environ.get('PATH')}"
     if build_system == BuildSystem.POETRY:
-        with cd(PyProject.get().config_path.parent):
-            SenvShell.get().activate(command="poetry shell")
+        cwd = os.getcwd()
+        with cd(c.config_path.parent):
+            with spawn_shell(command="poetry shell", cwd=cwd):
+                pass
+
     elif build_system == BuildSystem.CONDA:
-        SenvShell.get().activate(command=f"conda activate {PyProject.get().env.name}")
+        with spawn_shell(
+            command=f"{shlex.quote(str(c.conda_path.name))} activate {c.env.name}",
+        ):
+            pass
     else:
         raise NotImplementedError()
-    environ["PATH"] = ":".join(environ.get("PATH").split(":")[1:])
-    environ.pop("SENV_ACTIVE")
+    environ["PATH"] = os.path.pathsep.join(
+        environ.get("PATH").split(os.path.pathsep)[1:]
+    )
 
 
 @app.command(
