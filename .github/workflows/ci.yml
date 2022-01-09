@@ -40,11 +40,6 @@ jobs:
       - name: Test with pytest
         shell: bash -l {0}
         run: |
-          echo "Poetry path"
-          echo $(which poetry)
-          echo "senv path"
-          echo $(which senv)
-          
           export PATH=/usr/share/miniconda/envs/test/bin/poetry:$PATH
           export SENVX_INSTALLATION_PATH=$HOME/.senvx/tools
           echo $SENVX_INSTALLATION_PATH
