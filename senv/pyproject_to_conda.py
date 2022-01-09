@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import collections
+from collections import Mapping
 import json
 import re
 from concurrent.futures import ProcessPoolExecutor
@@ -117,7 +117,7 @@ def _parse_pyproject_toml(
 
     for depname, depattrs in deps.items():
         conda_dep_name = normalize_pypi_name(depname)
-        if isinstance(depattrs, collections.Mapping):
+        if isinstance(depattrs, Mapping):
             poetry_version_spec = depattrs["version"]
             # TODO: support additional features such as markers for things like sys_platform, platform_system
         elif isinstance(depattrs, str):

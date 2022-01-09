@@ -45,7 +45,7 @@ def build_conda_package_from_recipe(
     set_conda_build_path()
     if which("conda-mambabuild") is None:
         _install_package_dependencies()
-    args = ["conda-mambabuild", "--override-channels"]
+    args = ["conda-mambabuild", "--build-only", "--override-channels"]
     for c in PyProject.get().senv.conda_channels:
         args += ["--channel", c]
     if python_version:
