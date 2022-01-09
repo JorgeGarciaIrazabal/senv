@@ -25,7 +25,7 @@ extra_javascript:
 nav:
   - Senv: 'index.md'
   - Commands:
-    - Venv: 'venv.md'
+    - env: 'env.md'
     - Package: 'package.md'
     - Config: 'config.md'
   - Pyproject.toml: 'pyproject.md'

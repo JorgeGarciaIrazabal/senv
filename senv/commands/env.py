@@ -1,17 +1,19 @@
+import os.path
 import subprocess
 from os import environ
+import shlex
 from typing import List
 
 import typer
 
-from senv.command_lambdas import get_conda_platforms, get_default_build_system
+from senv.command_lambdas import get_conda_platforms, get_default_env_build_system
 from senv.log import log
 from senv.pyproject import BuildSystem, PyProject
 from senv.pyproject_to_conda import (
     generate_combined_conda_lock_file,
-    pyproject_to_conda_venv_dict,
+    pyproject_to_conda_env_dict,
 )
-from senv.shell import SenvShell
+from senv.shell import spawn_shell
 from senv.utils import cd
 
 app = typer.Typer(add_completion=False)
@@ -21,22 +23,22 @@ app = typer.Typer(add_completion=False)
     short_help="Install the dependencies and the dev-dependencies in a virtual environment",
     help="""
     Installs both, the dependencies and the dev-dependencies in a a virtual environment. 
-    This venv van be activated with `senv venv shell`.
-    You can configure where the lock files will be stored with the key `tools.senv.venv.venv-lock-dir
+    This env van be activated with `senv env shell`.
+    You can configure where the lock files will be stored with the key `tools.senv.env.env-lock-dir
     """,
 )
-def install(build_system: BuildSystem = typer.Option(get_default_build_system)):
+def install(build_system: BuildSystem = typer.Option(get_default_env_build_system)):
     sync(build_system=build_system)
 
 
 @app.command(
-    short_help="Updates the lock files and install the dependencies in your venv",
+    short_help="Updates the lock files and install the dependencies in your env",
     help="""
-    Updates the lock files and install the dependencies in your venv based on the constrains defined in the pyproject.toml
+    Updates the lock files and install the dependencies in your env based on the constrains defined in the pyproject.toml
     """,
 )
 def update(
-    build_system: BuildSystem = typer.Option(get_default_build_system),
+    build_system: BuildSystem = typer.Option(get_default_env_build_system),
     platforms: List[str] = typer.Option(
         get_conda_platforms,
         case_sensitive=False,
@@ -55,21 +57,21 @@ def update(
 
 
 @app.command(
-    short_help="Syncs the current venv with the lock files",
+    short_help="Syncs the current env with the lock files",
     help="""
-    Syncs the current venv with the lock files. Installs the missing dependencies and removes the ones that are not in the lock file
+    Syncs the current env with the lock files. Installs the missing dependencies and removes the ones that are not in the lock file
     """,
 )
-def sync(build_system: BuildSystem = typer.Option(get_default_build_system)):
+def sync(build_system: BuildSystem = typer.Option(get_default_env_build_system)):
     c = PyProject.get()
     if build_system == BuildSystem.POETRY:
         with cd(c.config_path.parent):
             subprocess.check_call([c.poetry_path, "install", "--remove-untracked"])
     elif build_system == BuildSystem.CONDA:
-        if not c.venv.conda_venv_lock_path.exists():
+        if not c.env.conda_lock_path.exists():
             log.info("No lock file found, locking environment now")
             lock(build_system=build_system, platforms=get_conda_platforms())
-        with c.venv.platform_conda_lock as lock_file:
+        with c.env.platform_conda_lock as lock_file:
             result = subprocess.run(
                 [
                     str(c.conda_path),
@@ -78,7 +80,7 @@ def sync(build_system: BuildSystem = typer.Option(get_default_build_system)):
                     str(lock_file.resolve()),
                     "--yes",
                     "--name",
-                    c.venv.name,
+                    c.env.name,
                 ]
             )
         if result.returncode != 0:
@@ -88,17 +90,27 @@ def sync(build_system: BuildSystem = typer.Option(get_default_build_system)):
 
 
 @app.command()
-def shell(build_system: BuildSystem = typer.Option(get_default_build_system)):
-    environ["PATH"] = f"{PyProject.get().conda_path.parent}:{environ.get('PATH')}"
+def shell(build_system: BuildSystem = typer.Option(get_default_env_build_system)):
+    c = PyProject.get()
+    # conda activate does not work using the conda executable path (I am not sure why)
+    # force adding the conda executable to the path and then call it
+    environ["PATH"] = f"{c.conda_path.parent}{os.path.pathsep}{environ.get('PATH')}"
     if build_system == BuildSystem.POETRY:
-        with cd(PyProject.get().config_path.parent):
-            SenvShell.get().activate(command="poetry shell")
+        cwd = os.getcwd()
+        with cd(c.config_path.parent):
+            with spawn_shell(command="poetry shell", cwd=cwd):
+                pass
+
     elif build_system == BuildSystem.CONDA:
-        SenvShell.get().activate(command=f"conda activate {PyProject.get().venv.name}")
+        with spawn_shell(
+            command=f"{shlex.quote(str(c.conda_path.name))} activate {c.env.name}",
+        ):
+            pass
     else:
         raise NotImplementedError()
-    environ["PATH"] = ":".join(environ.get("PATH").split(":")[1:])
-    environ.pop("SENV_ACTIVE")
+    environ["PATH"] = os.path.pathsep.join(
+        environ.get("PATH").split(os.path.pathsep)[1:]
+    )
 
 
 @app.command(
@@ -106,7 +118,7 @@ def shell(build_system: BuildSystem = typer.Option(get_default_build_system)):
 )
 def run(
     ctx: typer.Context,
-    build_system: BuildSystem = typer.Option(get_default_build_system),
+    build_system: BuildSystem = typer.Option(get_default_env_build_system),
 ):
     if build_system == BuildSystem.POETRY:
         with cd(PyProject.get().config_path.parent):
@@ -117,7 +129,7 @@ def run(
                 "conda",
                 "run",
                 "-n",
-                PyProject.get().venv.name,
+                PyProject.get().env.name,
                 "--no-capture-output",
                 "--live-stream",
             ]
@@ -129,7 +141,7 @@ def run(
 
 @app.command()
 def lock(
-    build_system: BuildSystem = typer.Option(get_default_build_system),
+    build_system: BuildSystem = typer.Option(get_default_env_build_system),
     platforms: List[str] = typer.Option(
         get_conda_platforms,
         case_sensitive=False,
@@ -141,11 +153,11 @@ def lock(
         with cd(c.config_path.parent):
             subprocess.check_call([c.poetry_path, "lock"])
     elif build_system == BuildSystem.CONDA:
-        c.venv.conda_venv_lock_path.parent.mkdir(exist_ok=True, parents=True)
+        c.env.conda_lock_path.parent.mkdir(exist_ok=True, parents=True)
         combined_lock = generate_combined_conda_lock_file(
             platforms,
-            pyproject_to_conda_venv_dict(),
+            pyproject_to_conda_env_dict(),
         )
-        c.venv.conda_venv_lock_path.write_text(combined_lock.json(indent=2))
+        c.env.conda_lock_path.write_text(combined_lock.json(indent=2))
     else:
         raise NotImplementedError()

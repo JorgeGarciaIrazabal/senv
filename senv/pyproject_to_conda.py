@@ -1,11 +1,11 @@
 #!/usr/bin/env python
-import collections
+from collections import Mapping
 import json
 import re
+from concurrent.futures import ProcessPoolExecutor
 from io import StringIO
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from threading import Timer
 from typing import Any, Dict, List, Optional
 
 import yaml
@@ -16,14 +16,13 @@ from conda_lock.src_parser.pyproject_toml import (
     poetry_version_to_conda_version,
     to_match_spec,
 )
-from progress.spinner import PixelSpinner
 from pydantic import BaseModel, Field
 
 from senv.errors import SenvInvalidPythonVersion
 from senv.log import log
 from senv.pyproject import PyProject
-from senv.senvx.models import CombinedCondaLock, LockFileMetaData
-from senv.utils import cd_tmp_dir
+from senvx.models import CombinedCondaLock, LockFileMetaData
+from senv.utils import MySpinner, cd_tmp_dir
 
 version_pattern = re.compile("version='(.*)'")
 
@@ -118,7 +117,7 @@ def _parse_pyproject_toml(
 
     for depname, depattrs in deps.items():
         conda_dep_name = normalize_pypi_name(depname)
-        if isinstance(depattrs, collections.Mapping):
+        if isinstance(depattrs, Mapping):
             poetry_version_spec = depattrs["version"]
             # TODO: support additional features such as markers for things like sys_platform, platform_system
         elif isinstance(depattrs, str):
@@ -153,7 +152,12 @@ def pyproject_to_recipe_yaml(
     output: Path = Path("conda.recipe") / "meta.yaml",
 ) -> Path:
     meta = pyproject_to_meta(python_version=python_version)
+    return meta_to_recipe_yaml(meta=meta, output=output)
 
+
+def meta_to_recipe_yaml(
+    *, meta: CondaMeta, output: Path = Path("conda.recipe") / "meta.yaml"
+) -> Path:
     recipe_dir = output.parent
     recipe_dir.mkdir(parents=True, exist_ok=True)
     _yaml_safe_dump(json.loads(meta.json()), output)
@@ -199,12 +203,12 @@ def pyproject_to_meta(
     )
 
 
-def pyproject_to_conda_venv_dict() -> Dict:
+def pyproject_to_conda_env_dict() -> Dict:
     channels = PyProject.get().senv.conda_channels
     dependencies = _get_dependencies_from_pyproject(include_dev_dependencies=True)
 
     return dict(
-        name=PyProject.get().venv.name, channels=channels, dependencies=dependencies
+        name=PyProject.get().env.name, channels=channels, dependencies=dependencies
     )
 
 
@@ -258,7 +262,7 @@ def create_env_yaml(
 
 def combine_conda_lock_files(
     directory: Path, platforms: List[str]
-) -> CombinedCondaLock:
+) -> "CombinedCondaLock":
     platform_tar_links = {}
     for platform in platforms:
         lock_file = directory / f"conda-{platform}.lock"
@@ -276,35 +280,49 @@ def combine_conda_lock_files(
     return CombinedCondaLock(metadata=metadata, platform_tar_links=platform_tar_links)
 
 
-class MySpinner(PixelSpinner):
-    def __init__(self, message="", **kwargs):
-        super().__init__(message, **kwargs)
-        self._finished = False
-
-    def finish(self):
-        super().finish()
-        self._finished = True
-
-    def start(self):
-        if not self._finished:
-            self.next()
-            Timer(0.3, self.start).start()
-
-
 def generate_combined_conda_lock_file(
     platforms: List[str], env_dict: Dict
-) -> CombinedCondaLock:
+) -> "CombinedCondaLock":
     c = PyProject.get()
     with NamedTemporaryFile(mode="w+") as f, cd_tmp_dir() as tmp_dir, MySpinner(
         "Building lock files..."
     ) as status:
         status.start()
         yaml.safe_dump(env_dict, f)
-        for platform in platforms:
-            run_lock(
-                [Path(f.name)],
-                conda_exe=str(c.conda_path.resolve()),
-                platforms=[platform],
-            )
+        processes = []
+        with ProcessPoolExecutor() as executor:
+            for platform in platforms:
+                p = executor.submit(
+                    run_lock,
+                    [Path(f.name)],
+                    conda_exe=str(c.conda_path.resolve()),
+                    platforms=[platform],
+                    channel_overrides=env_dict["channels"],
+                    kinds=["explicit"],
+                )
+                processes.append(p)
         status.writeln("combining lock files...")
         return combine_conda_lock_files(tmp_dir, platforms)
+
+
+def locked_package_to_recipe_yaml(lock_file: Path, output: Path):
+    c: PyProject = PyProject.get()
+    license_ = c.senv.license if c.senv.license != "Proprietary" else "INTERNAL"
+    meta = CondaMeta(
+        package=_Package(name=c.package_name_locked, version=c.version),
+        build=_Build(
+            script="echo 'This package is not installable through conda,"
+            " use senvx to install it'"
+        ),
+        source=_Source(path=lock_file.absolute()),
+        requirements=_Requirements(host=[], run=[]),
+        about=_About(
+            home=c.senv.homepage,
+            license=license_,
+            description=c.senv.description,
+            doc_url=c.senv.documentation,
+        ),
+        extra=_Extra(maintainers=c.senv.authors),
+    )
+
+    meta_to_recipe_yaml(meta=meta, output=output)

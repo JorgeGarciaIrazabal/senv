@@ -1,6 +1,6 @@
-# venv command
+# env command
 
-The venv command manages the creation and management of one or multiple virtual environments for development or ci.
+The env command manages the creation and management of one or multiple virtual environments for development or ci.
 
 ## Create virtual environment
 
@@ -11,7 +11,7 @@ By default, senv will use `conda` as your build system, and the channel `conda-f
 <div class="termy">
 
 ```console
-$ senv venv install
+$ senv env install
 generating lock files
 ---> 100%
 installing dependencies with conda
@@ -21,7 +21,7 @@ Dependencies successfully installed
 
 </div>
 
-A new virtual environment with your project's name, was created along with the windows, macos, and linux lock files in the `venv_locks_dir`.
+A new virtual environment with your project's name, was created along with the windows, macos, and linux lock files in the `env_locks_dir`.
 
 This can be configured in the pyproject.toml file, [see configure sections](#Configure your virtual environments)
 
@@ -31,7 +31,7 @@ This can be configured in the pyproject.toml file, [see configure sections](#Con
 <div class="termy">
 
 ```console
-$ senv venv install --build-system poetry
+$ senv env install --build-system poetry
 generating lock file
 ---> 100%
 installing dependencies with poetry
@@ -50,8 +50,8 @@ You can activate your environment by simply running
 <div class="termy">
 
 ```console
-$ senv venv shell
-venv activate
+$ senv env shell
+env activate
 ```
 
 </div>
@@ -61,8 +61,8 @@ Or activate using poetry with
 <div class="termy">
 
 ```console
-$ senv venv shell --build-system poetry
-venv activate
+$ senv env shell --build-system poetry
+env activate
 ```
 
 </div>
@@ -77,7 +77,7 @@ If you want to update your dependencies (based on the constraints defined in pyp
 <div class="termy">
 
 ```console
-$ senv venv update
+$ senv env update
 generating lock file
 ---> 100%
 installing dependencies with conda
@@ -93,7 +93,7 @@ or update both multiple build-systems at the same time
 
 
 ```console
-$ senv venv update --build-system conda --build-system poetry
+$ senv env update --build-system conda --build-system poetry
 generating conda lock files
 ---> 100%
 installing dependencies with conda
@@ -115,7 +115,7 @@ To just update the lock files without updating your environment, use `lock`
 
 ```console
 // you can also include mulple --build-system like in the command `update`
-$ senv venv lock
+$ senv env lock
 generating lock file
 ---> 100%
 Dependencies successfully installed
@@ -131,4 +131,4 @@ Dependencies successfully installed
 
 ::: mkdocs-click
     :module: senv.main
-    :command: venv_command
+    :command: env_command

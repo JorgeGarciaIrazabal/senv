@@ -7,7 +7,7 @@ from senv.conda_publish import LockFileMetaData
 from senv.errors import SenvNotAllPlatformsInBaseLockFile
 from senv.main import app
 from senv.pyproject import PyProject
-from senv.senvx.models import CombinedCondaLock
+from senvx.models import CombinedCondaLock
 from senv.tests.conftest import STATIC_PATH
 from senv.utils import cd
 
@@ -35,13 +35,13 @@ def temp_simple_pyproject(build_temp_pyproject):
 
 
 @fixture()
-def appdirs_venv_lock_path(temp_appdirs_pyproject) -> Path:
+def appdirs_env_lock_path(temp_appdirs_pyproject) -> Path:
     with cd(temp_appdirs_pyproject.parent):
-        # venv lock first to get the venv locks that we will use to tests our code
+        # env lock first to get the env locks that we will use to tests our code
         result = CliRunner().invoke(
             app,
             [
-                "venv",
+                "env",
                 "-f",
                 str(temp_appdirs_pyproject),
                 "lock",
@@ -51,7 +51,7 @@ def appdirs_venv_lock_path(temp_appdirs_pyproject) -> Path:
             catch_exceptions=False,
         )
         assert result.exit_code == 0
-        yield PyProject.get().senv.venv.conda_venv_lock_path
+        yield PyProject.get().senv.env.conda_lock_path
 
 
 def test_build_simple_pyproject_with_conda_even_with_poetry_build_system_in_pyproject(
@@ -72,22 +72,29 @@ def test_build_simple_pyproject_with_conda_even_with_poetry_build_system_in_pypr
     assert result.exit_code == 0, result.exception
 
 
-def test_publish_conda_raises_exception_if_repository_url_is_null(
-    temp_small_conda_pyproject, cli_runner
-):
+def test_publish_requires_username_and_password(temp_small_conda_pyproject, cli_runner):
+    args = [
+        "package",
+        "-f",
+        str(temp_small_conda_pyproject),
+        "publish",
+    ]
     with cd(temp_small_conda_pyproject.parent):
         result = cli_runner.invoke(
             app,
-            [
-                "package",
-                "-f",
-                str(temp_small_conda_pyproject),
-                "publish",
-            ],
-            input="y",
+            args,
         )
-    assert result.exit_code == 1
-    assert isinstance(result.exception, NotImplementedError)
+        assert result.exit_code == 2, result.output
+        result = cli_runner.invoke(
+            app,
+            args + ["-u", "username"],
+        )
+        assert result.exit_code == 2, result.output
+        result = cli_runner.invoke(
+            app,
+            args + ["-p", "password"],
+        )
+        assert result.exit_code == 2, result.output
 
 
 def test_lock_appdirs_simple_does_not_include_fake_dependencies(
@@ -107,8 +114,8 @@ def test_lock_appdirs_simple_does_not_include_fake_dependencies(
             catch_exceptions=False,
         )
         assert result.exit_code == 0
-        assert PyProject.get().senv.conda_package_lock_path.exists()
-        assert "click" not in PyProject.get().senv.conda_package_lock_path.read_text()
+        assert PyProject.get().senv.package.conda_lock_path.exists()
+        assert "click" not in PyProject.get().senv.package.conda_lock_path.read_text()
 
 
 def test_lock_appdirs_simple_includes_metadata(temp_appdirs_pyproject, cli_runner):
@@ -126,18 +133,18 @@ def test_lock_appdirs_simple_includes_metadata(temp_appdirs_pyproject, cli_runne
             catch_exceptions=False,
         )
         conda_lock = CombinedCondaLock.parse_file(
-            PyProject.get().senv.conda_package_lock_path
+            PyProject.get().senv.package.conda_lock_path
         )
         assert conda_lock.metadata.package_name == "appdirs"
         assert conda_lock.metadata.entry_points == []
 
 
 def test_lock_based_on_tested_includes_pinned_dependencies(
-    temp_appdirs_pyproject, cli_runner, appdirs_venv_lock_path
+    temp_appdirs_pyproject, cli_runner, appdirs_env_lock_path
 ):
     with cd(temp_appdirs_pyproject.parent):
         click_line = next(
-            l for l in appdirs_venv_lock_path.read_text().splitlines() if "click" in l
+            l for l in appdirs_env_lock_path.read_text().splitlines() if "click" in l
         )
 
         result = cli_runner.invoke(
@@ -150,13 +157,13 @@ def test_lock_based_on_tested_includes_pinned_dependencies(
                 "--platforms",
                 "linux-64",
                 "--based-on-tested-lock-file",
-                str(appdirs_venv_lock_path.resolve()),
+                str(appdirs_env_lock_path.resolve()),
             ],
             catch_exceptions=False,
         )
         assert result.exit_code == 0
-        assert PyProject.get().senv.conda_package_lock_path.exists()
-        assert click_line in PyProject.get().senv.conda_package_lock_path.read_text()
+        assert PyProject.get().senv.package.conda_lock_path.exists()
+        assert click_line in PyProject.get().senv.package.conda_lock_path.read_text()
 
 
 def test_lock_throws_if_not_all_platform_exists(

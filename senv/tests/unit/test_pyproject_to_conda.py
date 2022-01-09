@@ -1,5 +1,5 @@
 from senv.pyproject import PyProject
-from senv.pyproject_to_conda import pyproject_to_conda_venv_dict, pyproject_to_meta
+from senv.pyproject_to_conda import pyproject_to_conda_env_dict, pyproject_to_meta
 from senv.tests.conftest import STATIC_PATH
 
 SIMPLE_PYPROJECT_TOML = STATIC_PATH / "simple_pyproject.toml"
@@ -33,7 +33,7 @@ def test_pyproject_to_conda_creates_recipe_right_params():
 
 def test_pyproject_to_conda_dev_env_dict_generates_env_with_dev_deps():
     PyProject.read_toml(SIMPLE_PYPROJECT_TOML)
-    env_dict = pyproject_to_conda_venv_dict()
+    env_dict = pyproject_to_conda_env_dict()
     dep_names = [d.split(" ")[0] for d in env_dict["dependencies"]]
 
     assert len(env_dict["dependencies"]) == 8
@@ -47,13 +47,13 @@ def test_pyproject_to_conda_dev_env_dict_generates_env_with_dev_deps():
 
 def test_pyproject_to_conda_dev_env_dict_has_no_channel_and_basic_name():
     PyProject.read_toml(SIMPLE_PYPROJECT_TOML)
-    env_dict = pyproject_to_conda_venv_dict()
+    env_dict = pyproject_to_conda_env_dict()
     assert len(env_dict["channels"]) == 0
     assert env_dict["name"] == "test_name"
 
 
 def test_pyproject_to_conda_dev_env_dict_senv_overrides_values():
     PyProject.read_toml(SENV_OVERRIDE_PYPROJECT_TOML)
-    env_dict = pyproject_to_conda_venv_dict()
+    env_dict = pyproject_to_conda_env_dict()
     assert len(env_dict["channels"]) == 2
     assert env_dict["name"] == "overridden_name"

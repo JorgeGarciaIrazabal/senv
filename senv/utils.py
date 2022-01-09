@@ -1,14 +1,17 @@
 import contextlib
 import os
-import shutil
-import sys
-from io import StringIO
-from os import devnull
 from pathlib import Path
+from sys import platform
 from tempfile import TemporaryDirectory
-from typing import Iterator
+from threading import Timer
+from typing import ContextManager
 
-from senv.pyproject import PyProject
+import typer
+from progress.spinner import PixelSpinner
+
+from senv.errors import SenvNotSupportedPlatform
+
+__auto_confirm_yes = False
 
 
 @contextlib.contextmanager
@@ -22,7 +25,7 @@ def cd(path: Path):
 
 
 @contextlib.contextmanager
-def cd_tmp_dir(prefix="senv_") -> Iterator[Path]:
+def cd_tmp_dir(prefix="senv_") -> ContextManager[Path]:
     with TemporaryDirectory(prefix=prefix) as tmp_dir, cd(Path(tmp_dir)):
         yield Path(tmp_dir)
 
@@ -52,53 +55,54 @@ def tmp_env() -> None:
 
 
 @contextlib.contextmanager
-def tmp_repo() -> Iterator[PyProject]:
-    """
-    duplicate repository in temporary directory and point PyProject to this new path
-    This is useful if we want to make temporary modifications
-    for long running tasks or that can fail.
-    That way no temporary change will never affect the real repository
-    :return:
-    """
-    # this might not be very realistic for very big projects
-    original_config_path = PyProject.get().config_path
-    with cd_tmp_dir(prefix="senv_tmp_repo-") as tmp_dir:
-        project_dir = Path(tmp_dir, "project")
-        shutil.copytree(PyProject.get().config_path.parent, project_dir)
-        PyProject.read_toml(Path(project_dir, "pyproject.toml"))
-        yield PyProject.get()
-    PyProject.read_toml(original_config_path)
+def auto_confirm_yes(yes: bool = False):
+    global __auto_confirm_yes
+    __auto_confirm_yes = yes
+    yield
+    __auto_confirm_yes = False
 
 
-@contextlib.contextmanager
-def suppress_stdout_stderr():
-    """A context manager that redirects stdout and stderr to devnull"""
-    with open(devnull, "w") as fnull, contextlib.redirect_stderr(
-        fnull
-    ) as err, contextlib.redirect_stdout(fnull) as out:
-        yield err, out
+def confirm(
+    text, default=False, abort=False, prompt_suffix=": ", show_default=True, err=False
+):
+    global __auto_confirm_yes
+    if __auto_confirm_yes:
+        return True
+    return typer.confirm(
+        text,
+        default=default,
+        abort=abort,
+        prompt_suffix=prompt_suffix,
+        show_default=show_default,
+        err=err,
+    )
 
 
-class Hider:
-    def __init__(self, channels=("stdout",)):
-        self._stomach = StringIO()
-        self._orig = {ch: None for ch in channels}
+def build_yes_option():
+    return typer.Option(False, "--yes", "-y", help="Answer yes to all confirm prompts")
 
-    def __enter__(self):
-        for ch in self._orig:
-            self._orig[ch] = getattr(sys, ch)
-            setattr(sys, ch, self)
-        return self
 
-    def write(self, string):
-        self._stomach.write(string)
+def get_current_platform() -> str:
+    if platform == "linux" or platform == "linux2":
+        return "linux-64"
+    elif platform == "darwin":
+        return "osx-64"
+    elif platform == "win32":
+        return "win-64"
+    else:
+        raise SenvNotSupportedPlatform(f"Platform {platform} not supported")
 
-    def flush(self):
-        pass
 
-    def autopsy(self):
-        return self._stomach.getvalue()
+class MySpinner(PixelSpinner):
+    def __init__(self, message="", **kwargs):
+        super().__init__(message, **kwargs)
+        self._finished = False
 
-    def __exit__(self, *args):
-        for ch in self._orig:
-            setattr(sys, ch, self._orig[ch])
+    def finish(self):
+        super().finish()
+        self._finished = True
+
+    def start(self):
+        if not self._finished:
+            self.next()
+            Timer(0.3, self.start).start()

@@ -4,7 +4,7 @@ from contextlib import contextmanager
 from copy import deepcopy
 from enum import Enum
 from pathlib import Path
-from sys import platform
+from shutil import which
 from tempfile import TemporaryDirectory
 from typing import Any, Dict, List, Optional, Set
 
@@ -12,10 +12,12 @@ import toml
 from conda_lock.conda_lock import DEFAULT_PLATFORMS
 from ensureconda import ensureconda
 from pydantic import BaseModel, Field, PrivateAttr, root_validator, validator
+from senvx.constants import LOCKED_PACKAGE_SUFFIX
 
-from senv.errors import SenvBadConfiguration, SenvNotSupportedPlatform
+from senv.errors import SenvBadConfiguration
 from senv.log import log
-from senv.senvx.models import CombinedCondaLock
+from senvx.models import CombinedCondaLock
+from senv.utils import get_current_platform
 
 
 class BuildSystem(str, Enum):
@@ -23,35 +25,45 @@ class BuildSystem(str, Enum):
     POETRY = "poetry"
 
 
-class _SenvVEnv(BaseModel):
-    build_system: Optional[BuildSystem] = Field(None, alias="build-system")
+class _SenvEnv(BaseModel):
+    build_system: Optional[BuildSystem] = Field(
+        None,
+        alias="build-system",
+        description="Default system used to build the virtual environment."
+        " (If not defined, use tool.senv.build_system)",
+    )
     conda_lock_platforms: Set[str] = Field(
-        set(DEFAULT_PLATFORMS), alias="conda-lock-platforms"
+        set(DEFAULT_PLATFORMS),
+        alias="conda-lock-platforms",
+        description="(Conda only) Default set of platforms to solve and lock the dependencies for",
     )
-    conda_venv_lock_path: Path = Field(
-        Path("conda_venv.lock.json"), alias="conda-venv-lock-path"
+    conda_lock_path: Path = Field(
+        Path("conda_env.lock.json"),
+        alias="conda-lock-path",
+        description="(Conda only) The path of where the lock file will be generated",
     )
-    name: Optional[str]
+    name: Optional[str] = Field(
+        None,
+        description="(Conda only) Alternative name for the conda environment"
+        " (by default: tool.senv.name)",
+    )
 
     @property
     @contextmanager
     def platform_conda_lock(self) -> Path:
-        if platform == "linux" or platform == "linux2":
-            plat = "linux-64"
-        elif platform == "darwin":
-            plat = "osx-64"
-        elif platform == "win32":
-            plat = "win-64"
-        else:
-            raise SenvNotSupportedPlatform(f"Platform {platform} not supported")
+        """
+        Creates a temporary lock file that conda-lock can understand for the current platform
+        :return: the path of the conda lock file
+        """
+        plat = get_current_platform()
 
-        if not self.conda_venv_lock_path.exists():
+        if not self.conda_lock_path.exists():
             raise SenvBadConfiguration(
-                f"No conda venv lock file found in {self.conda_venv_lock_path.resolve()}"
+                f"No conda env lock file found in {self.conda_lock_path.resolve()}"
             )
 
         with TemporaryDirectory() as tmp_dir:
-            combine_lock_file = CombinedCondaLock.parse_file(self.conda_venv_lock_path)
+            combine_lock_file = CombinedCondaLock.parse_file(self.conda_lock_path)
             plat_file = Path(tmp_dir) / f"plat-{plat}.lock"
             plat_file.write_text(
                 "@EXPLICIT\n" + "\n".join(combine_lock_file.platform_tar_links[plat])
@@ -59,53 +71,144 @@ class _SenvVEnv(BaseModel):
             yield plat_file
 
 
-class _Senv(BaseModel):
-    venv: _SenvVEnv = Field(_SenvVEnv())
-    # poetry shared
-    name: Optional[str] = Field(None)
-    version: Optional[str] = Field(None)
-    description: Optional[str] = Field(None)
-    authors: Optional[List[str]] = Field(None)
-    dependencies: Dict[str, Any] = Field(default_factory=dict)
-    dev_dependencies: Dict[str, Any] = Field(
-        default_factory=dict, alias="dev-dependencies"
+class _SenvPackage(BaseModel):
+    build_system: Optional[BuildSystem] = Field(
+        None,
+        alias="build-system",
+        description="Default system used to build the final package."
+        " (If not defined, use tool.senv.build_system)",
     )
-    scripts: Dict[str, str] = Field(default_factory=dict)
-    homepage: Optional[str] = Field(None)
-    documentation: Optional[str] = Field(None)
-    license: str = Field("Proprietary")
-
-    # senv specific
-    # todo move some of this to a _Package model
-    conda_path: Optional[Path] = Field(None, alias="conda-path", env="SENV_CONDA_PATH")
     conda_build_path: Path = Field(
         None, alias="conda-build-path", env="SENV_CONDA_BUILD_PATH"
     )
-    conda_channels: Optional[List[str]] = Field([], alias="conda-channels")
-    conda_publish_channel: Optional[str] = Field(
-        None, alias="conda-publish-channel", env="SENV_CONDA_PUBLISH_CHANNEL"
+    conda_publish_url: Optional[str] = Field(
+        "https://anaconda.org",
+        alias="conda-publish-channel",
+        env="SENV_CONDA_PUBLISH_URL",
     )
-    conda_package_lock_path: Path = Field(
-        Path("package_locks_dir"), alias="conda-package-lock-path"
+    conda_lock_path: Path = Field(
+        Path("package_locked.lock.json"), alias="conda-lock-path"
     )
     poetry_publish_repository: Optional[str] = Field(
         None, alias="poetry-publish-repository", env="SENV_POETRY_PUBLISH_REPOSITORY"
     )
-    poetry_path: Optional[Path] = Field(
-        None, alias="poetry-path", env="SENV_POETRY_PATH"
+
+
+class _Senv(BaseModel):
+    env: _SenvEnv = Field(_SenvEnv())
+    package: _SenvPackage = Field(_SenvPackage())
+    build_system: Optional[BuildSystem] = Field(
+        BuildSystem.CONDA,
+        alias="build-system",
+        description="Default system used to build the virtual environment and the package",
     )
-    build_system: BuildSystem = Field(BuildSystem.CONDA, alias="build-system")
+    # poetry shared
+    name: Optional[str] = Field(None, description="The name of the package")
+    version: Optional[str] = Field(None, description="The version of the package")
+    description: Optional[str] = Field(
+        None, description="A short description of the package"
+    )
+    license: str = Field(
+        "Proprietary",
+        description="License of the package."
+        " License identifiers are listed at [SPDX](https://spdx.org/licenses/)",
+    )
+    authors: Optional[List[str]] = Field(
+        None,
+        description="The authors of the package. Authors must be in the form `name <email>`",
+    )
+    readme: Optional[str] = Field(
+        None,
+        description="(Poetry only) The readme file of the package."
+        " The file can be either `README.rst` or `README.md`",
+    )
+    homepage: Optional[str] = Field(
+        None, description="An URL to the website of the project"
+    )
+    repository: Optional[str] = Field(
+        None, description="An URL to the repository of the project"
+    )
+    documentation: Optional[str] = Field(
+        None, description="An URL to the documentation of the project"
+    )
+    keywords: Optional[List[str]] = Field(
+        None,
+        description="(Poetry only) A list of keywords (max: 5) that the package is related to",
+    )
+    classifiers: Optional[List[str]] = Field(
+        None,
+        description="(Poetry only) A list of PyPI "
+        "[trove classifiers](https://pypi.org/classifiers/) that describe the project",
+    )
+    packages: Optional[Dict[str, str]] = Field(
+        None,
+        description="(Poetry Only) A list of packages"
+        " and modules to include in the final distribution",
+    )
+    include: Optional[List[str]] = Field(
+        None,
+        description="A list of patterns that will be included in the final package",
+    )
+    # todo
+    # exclude: Optional[List[str]] = Field(
+    #     None,
+    #     description="A list of patterns that will be excluded in the final package",
+    # )
+
+    dependencies: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="List of dependencies to be included in the "
+        "final package and in the virtual environment",
+    )
+    dev_dependencies: Dict[str, Any] = Field(
+        default_factory=dict,
+        alias="dev-dependencies",
+        description="List of dependencies to be included in the "
+        "virtual environment but not in the final package",
+    )
+    scripts: Dict[str, str] = Field(
+        default_factory=dict,
+        description="The scripts or executables that will be installed when installing the package",
+    )
+
+    # senv specific
+    conda_channels: Optional[List[str]] = Field(
+        [],
+        alias="conda-channels",
+        description="(Conda Only) The conda channels to build the "
+        "package and the virtual environment",
+    )
+    conda_path: Optional[Path] = Field(
+        None,
+        alias="conda-path",
+        env="SENV_CONDA_PATH",
+        description="(Conda Only) path of the conda executable."
+        " (If not defined, it will try to find it in PATH)",
+    )
+    poetry_path: Optional[Path] = Field(
+        None,
+        alias="poetry-path",
+        env="SENV_POETRY_PATH",
+        description="(Poetry Only) path of the poetry executable."
+        " (If not defined, it will try to find it in PATH)",
+    )
 
     def __init__(self, **data: Any) -> None:
         super().__init__(**data)
-        # if not build_system for the venv, then use the generic one
-        if self.venv.build_system is None:
-            self.venv.build_system = self.build_system
+        # if not build_system in env or package, then use the generic one
+        if self.env.build_system is None:
+            self.env.build_system = self.build_system
+        if self.package.build_system is None:
+            self.package.build_system = self.build_system
 
     @validator("conda_path", "poetry_path")
     def _validate_executable(cls, p: Path):
         if not p.exists():
-            raise ValueError(f"Provided path {p} was not found")
+            resolved_p = which(p)
+            if resolved_p is None:
+                raise ValueError(f"Provided path {p} was not found")
+            else:
+                p = Path(resolved_p).resolve()
         if not os.access(str(p), os.X_OK):
             raise ValueError(f"Provided path {p} is not executable")
         return p
@@ -124,8 +227,8 @@ class PyProject(BaseModel):
         super().__init__(**data)
         if self.package_name is None:
             raise ValueError("package name is required")
-        if self.senv.conda_build_path is None:
-            self.senv.conda_build_path = (
+        if self.senv.package.conda_build_path is None:
+            self.senv.package.conda_build_path = (
                 Path.home() / ".senv" / self.package_name / "dist_conda"
             )
 
@@ -141,12 +244,12 @@ class PyProject(BaseModel):
         return values_copy
 
     @root_validator
-    def venv_name_defaults_to_package_name(cls, values: Dict[str, Any]):
+    def env_name_defaults_to_package_name(cls, values: Dict[str, Any]):
         if len(values) == 0:
             # it is likely that another validation failed before this one
             return values
         tool: _Tool = values.get("tool")
-        tool.senv.venv.name = tool.senv.venv.name or tool.senv.name
+        tool.senv.env.name = tool.senv.env.name or tool.senv.name
         return values
 
     @classmethod
@@ -178,8 +281,8 @@ class PyProject(BaseModel):
         return self.tool.senv
 
     @property
-    def venv(self) -> _SenvVEnv:
-        return self.tool.senv.venv
+    def env(self) -> _SenvEnv:
+        return self.tool.senv.env
 
     @property
     def version(self) -> str:
@@ -188,6 +291,10 @@ class PyProject(BaseModel):
     @property
     def package_name(self) -> str:
         return self.senv.name
+
+    @property
+    def package_name_locked(self) -> str:
+        return f"{self.package_name}{LOCKED_PACKAGE_SUFFIX}"
 
     @property
     def python_version(self) -> str:
@@ -217,11 +324,11 @@ class PyProject(BaseModel):
                 " with key 'tool.senv.conda_path'"
             )
 
-        if self.senv.conda_build_path is None:
+        if self.senv.package.conda_build_path is None:
             raise SenvBadConfiguration("conda_build_root can not be None")
 
         try:
-            self.senv.conda_build_path.resolve().relative_to(
+            self.senv.package.conda_build_path.resolve().relative_to(
                 self.config_path.parent.resolve()
             )
             raise SenvBadConfiguration(

@@ -1,54 +1,37 @@
 import os
-import signal
 import sys
 from contextlib import contextmanager
-from os import environ
+from pathlib import Path
+from typing import Optional, Union
 
 import pexpect
-import typer
-from clikit.utils.terminal import Terminal
-from poetry.utils.shell import Shell
-
-from senv.log import log
-
-WINDOWS = sys.platform == "win32"
+from pexpect import spawn
+from shellingham import ShellDetectionFailure
+from shellingham import detect_shell
 
 
 @contextmanager
-def temp_environ():
-    environ = dict(os.environ)
+def spawn_shell(command, cwd: Optional[Union[Path, str]] = None) -> spawn:
     try:
-        yield
-    finally:
-        os.environ.clear()
-        os.environ.update(environ)
+        name, path = detect_shell(os.getpid())
+    except (RuntimeError, ShellDetectionFailure):
+        shell = None
 
+        if os.name == "posix":
+            shell = os.environ.get("SHELL")
+        elif os.name == "nt":
+            shell = os.environ.get("COMSPEC")
 
-class SenvShell(Shell):
-    def activate(self, command):
-        if environ.get("SENV_ACTIVE", "0") == "1":
-            log.info("environment already active")
-            raise typer.Abort("environment already activate")
-        environ["SENV_ACTIVE"] = "1"
-        terminal = Terminal()
-        with temp_environ():
-            c = pexpect.spawn(
-                self._path, ["-i"], dimensions=(terminal.height, terminal.width)
-            )
+        if not shell:
+            raise RuntimeError("Unable to detect the current shell.")
 
-        if self._name == "zsh":
-            c.setecho(False)
+        name, path = Path(shell).stem, shell
 
-        c.sendline(command)
+    c = pexpect.spawn(path, args=["-i"])
+    c.sendline(command)
+    if cwd:
+        c.sendline(f"cd {cwd}")
+    c.interact(escape_character=None)
+    yield c
 
-        def resize(sig, data):
-            terminal = Terminal()
-            c.setwinsize(terminal.height, terminal.width)
-
-        signal.signal(signal.SIGWINCH, resize)
-
-        # Interact with the new shell.
-        c.interact(escape_character=None)
-        c.close()
-        environ.pop("SENV_ACTIVE")
-        sys.exit(c.exitstatus)
+    sys.exit(c.exitstatus)

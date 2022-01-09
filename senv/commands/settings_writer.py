@@ -14,12 +14,12 @@ class AllowedConfigKeys(str, Enum):
     CONDA_CHANNELS = "conda-channels"
     CONDA_PATH = "conda-path"
     POETRY_PATH = "poetry-path"
-    CONDA_PUBLISH_CHANNEL = "conda-publish-channel"
+    CONDA_PUBLISH_CHANNEL = "package.conda-publish-channel"
     POETRY_PUBLISH_REPOSITORY = "poetry-publish-repository"
-    CONDA_PLATFORMS = "venv.conda-lock-platforms"
-    CONDA_VENV_LOCK_PATH = "venv.conda-venv-lock-path"
-    VENV_BUILD_SYSTEM = "venv.build-system"
-    CONDA_PACKAGE_LOCK_PATH = "conda-package-lock-path"
+    CONDA_PLATFORMS = "env.conda-lock-platforms"
+    CONDA_ENV_LOCK_PATH = "env.conda-lock-path"
+    ENV_BUILD_SYSTEM = "env.build-system"
+    CONDA_PACKAGE_LOCK_PATH = "package.conda-lock-path"
 
 
 CONFIG_KEYS_MULTIPLE = {

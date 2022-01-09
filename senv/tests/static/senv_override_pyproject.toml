@@ -26,5 +26,5 @@ conda-channels = [
     "conda-forge",
     "defaults"
 ]
-[tool.senv.venv]
+[tool.senv.env]
 name="overridden_name"
