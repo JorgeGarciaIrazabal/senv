@@ -1,3 +1,6 @@
+# Project in a very early stage
+There are a lot of features missing and documentation might not align with the tool. 
+
 # senv (Super Environment)
 
 **Senv (Super Environment)** is a tool to simplify **dependency management**, **packaging**, **distribution**, **testing**, and **consumption** of your applications and libraries.
