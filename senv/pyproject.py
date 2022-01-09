@@ -12,13 +12,12 @@ import toml
 from conda_lock.conda_lock import DEFAULT_PLATFORMS
 from ensureconda import ensureconda
 from pydantic import BaseModel, Field, PrivateAttr, root_validator, validator
+from senvx.constants import LOCKED_PACKAGE_SUFFIX
 
 from senv.errors import SenvBadConfiguration
 from senv.log import log
 from senvx.models import CombinedCondaLock
 from senv.utils import get_current_platform
-
-LOCKED_PACKAGE_SUFFIX = "__locked"
 
 
 class BuildSystem(str, Enum):
