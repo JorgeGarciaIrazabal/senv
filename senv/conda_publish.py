@@ -45,7 +45,7 @@ def build_conda_package_from_recipe(
     set_conda_build_path()
     if which("conda-mambabuild") is None:
         _install_package_dependencies()
-    args = ["conda-mambabuild", "--build-only", "--override-channels"]
+    args = ["conda-mambabuild", "--override-channels"]
     for c in PyProject.get().senv.conda_channels:
         args += ["--channel", c]
     if python_version:
@@ -147,7 +147,7 @@ def generate_app_lock_file_based_on_tested_lock_path(
                         dependencies[name] = f"=={version}"
                 yaml_path = create_env_yaml(
                     channels=conda_channels,
-                    output=Path(tmp_dir) / "env.yaml",
+                    output=Path(tmp_dir) / platform / "env.yaml",
                     dependencies=dependencies,
                 )
                 executor.submit(

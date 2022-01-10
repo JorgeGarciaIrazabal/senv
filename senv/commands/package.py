@@ -16,6 +16,7 @@ from senv.conda_publish import (
     publish_conda,
 )
 from senv.log import log
+from senv.package import conda_publish_locked_package
 from senv.pyproject import BuildSystem, PyProject
 from senv.pyproject_to_conda import (
     generate_combined_conda_lock_file,
@@ -36,27 +37,31 @@ based_on_tested_lock_file_option = typer.Option(
 )
 
 
-@app.command(name="build")
+@app.command(
+    name="build",
+)
 def build_package(
     build_system: BuildSystem = typer.Option(get_default_package_build_system),
     python_version: Optional[str] = None,
+    yes: bool = build_yes_option(),
 ):
-    # todo add progress bar
-    if build_system == BuildSystem.POETRY:
-        with cd(PyProject.get().config_path.parent):
-            subprocess.check_call([PyProject.get().poetry_path, "build"])
-    elif build_system == BuildSystem.CONDA:
-        with tmp_env():
-            meta_path = (
-                PyProject.get().config_path.parent / "conda.recipe" / "meta.yaml"
-            )
-            pyproject_to_recipe_yaml(
-                python_version=python_version,
-                output=meta_path,
-            )
-            build_conda_package_from_recipe(meta_path, python_version)
-    else:
-        raise NotImplementedError()
+    with auto_confirm_yes(yes):
+        # todo add progress bar
+        if build_system == BuildSystem.POETRY:
+            with cd(PyProject.get().config_path.parent):
+                subprocess.check_call([PyProject.get().poetry_path, "build"])
+        elif build_system == BuildSystem.CONDA:
+            with tmp_env():
+                meta_path = (
+                    PyProject.get().config_path.parent / "conda.recipe" / "meta.yaml"
+                )
+                pyproject_to_recipe_yaml(
+                    python_version=python_version,
+                    output=meta_path,
+                )
+                build_conda_package_from_recipe(meta_path, python_version)
+        else:
+            raise NotImplementedError()
 
 
 @app.command(name="publish")
@@ -174,29 +179,15 @@ def publish_locked_package(
     ),
     yes: bool = build_yes_option(),
 ):
-    c: PyProject = PyProject.get()
     with auto_confirm_yes(yes):
         if build_system == BuildSystem.POETRY:
             raise NotImplementedError("publish locked ")
         elif build_system == BuildSystem.CONDA:
-            with cd_tmp_dir() as tmp_dir:
-                meta_path = tmp_dir / "conda.recipe" / "meta.yaml"
-                temp_lock_path = meta_path.parent / "package_locked_file.lock.json"
-                meta_path.parent.mkdir(parents=True)
-                shutil.copyfile(
-                    str(lock_file.absolute()), str(temp_lock_path.absolute())
-                )
-
-                locked_package_to_recipe_yaml(temp_lock_path, meta_path)
-                build_conda_package_from_recipe(meta_path.absolute())
-
-                with cd(meta_path.parent):
-                    repository_url = repository_url or c.senv.package.conda_publish_url
-                    publish_conda(
-                        username,
-                        password,
-                        repository_url,
-                        package_name=c.package_name_locked,
-                    )
+            conda_publish_locked_package(
+                repository_url=repository_url,
+                username=username,
+                password=password,
+                lock_file=lock_file,
+            )
         else:
             raise NotImplementedError()

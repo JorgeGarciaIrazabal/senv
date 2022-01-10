@@ -228,8 +228,11 @@ class PyProject(BaseModel):
         if self.package_name is None:
             raise ValueError("package name is required")
         if self.senv.package.conda_build_path is None:
-            self.senv.package.conda_build_path = (
-                Path.home() / ".senv" / self.package_name / "dist_conda"
+            self.senv.package.conda_build_path = Path(
+                os.environ.get(
+                    "SENV_CONDA_BUILD_PATH",
+                    (Path.home() / ".senv" / self.package_name / "dist_conda"),
+                )
             )
 
     @root_validator(pre=True)

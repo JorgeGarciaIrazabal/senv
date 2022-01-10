@@ -26,6 +26,9 @@ from senv.utils import MySpinner, cd_tmp_dir
 
 version_pattern = re.compile("version='(.*)'")
 
+# todo replace with senx constant when we release a new version
+LOCKED_PACKAGE_LOCK_NAME = "senv.lock.json"
+
 
 class _Package(BaseModel):
     name: str
@@ -311,8 +314,7 @@ def locked_package_to_recipe_yaml(lock_file: Path, output: Path):
     meta = CondaMeta(
         package=_Package(name=c.package_name_locked, version=c.version),
         build=_Build(
-            script="echo 'This package is not installable through conda,"
-            " use senvx to install it'"
+            script=f"mkdir -p $PREFIX && cp {lock_file.resolve()} $PREFIX/{lock_file.name}"
         ),
         source=_Source(path=lock_file.absolute()),
         requirements=_Requirements(host=[], run=[]),

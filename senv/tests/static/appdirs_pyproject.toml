@@ -5,6 +5,7 @@ authors = ["Jorge <jirazabal@flatiron.com>"]
 
 [tool.poetry.dependencies]
 # fake dependency to test package lock skipping this dep
+# app lock should get the dependencies form the project name + version
 click = "*"
 
 [tool.senv]

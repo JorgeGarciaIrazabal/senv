@@ -1,15 +1,20 @@
+import tarfile
 from pathlib import Path
+from typing import Optional
 
 from pytest import fixture
-from typer.testing import CliRunner
 
 from senv.conda_publish import LockFileMetaData
 from senv.errors import SenvNotAllPlatformsInBaseLockFile
 from senv.main import app
 from senv.pyproject import PyProject
 from senvx.models import CombinedCondaLock
+
+from senv.pyproject_to_conda import LOCKED_PACKAGE_LOCK_NAME
 from senv.tests.conftest import STATIC_PATH
 from senv.utils import cd
+
+__appdirs_lock_content: Optional[str] = None
 
 
 @fixture()
@@ -37,23 +42,13 @@ def temp_simple_pyproject(build_temp_pyproject):
 @fixture()
 def appdirs_env_lock_path(temp_appdirs_pyproject) -> Path:
     with cd(temp_appdirs_pyproject.parent):
-        # env lock first to get the env locks that we will use to tests our code
-        result = CliRunner().invoke(
-            app,
-            [
-                "env",
-                "-f",
-                str(temp_appdirs_pyproject),
-                "lock",
-                "--platforms",
-                "linux-64",
-            ],
-            catch_exceptions=False,
+        PyProject.get().senv.env.conda_lock_path.write_text(
+            (STATIC_PATH / "appdirs_combined_lock.json").read_text()
         )
-        assert result.exit_code == 0
-        yield PyProject.get().senv.env.conda_lock_path
+        return PyProject.get().senv.env.conda_lock_path.resolve()
 
 
+# todo mock conda build and move it to unit test
 def test_build_simple_pyproject_with_conda_even_with_poetry_build_system_in_pyproject(
     temp_simple_pyproject, cli_runner
 ):
@@ -143,10 +138,6 @@ def test_lock_based_on_tested_includes_pinned_dependencies(
     temp_appdirs_pyproject, cli_runner, appdirs_env_lock_path
 ):
     with cd(temp_appdirs_pyproject.parent):
-        click_line = next(
-            l for l in appdirs_env_lock_path.read_text().splitlines() if "click" in l
-        )
-
         result = cli_runner.invoke(
             app,
             [
@@ -163,7 +154,49 @@ def test_lock_based_on_tested_includes_pinned_dependencies(
         )
         assert result.exit_code == 0
         assert PyProject.get().senv.package.conda_lock_path.exists()
-        assert click_line in PyProject.get().senv.package.conda_lock_path.read_text()
+        assert "click-8.0.3" in PyProject.get().senv.package.conda_lock_path.read_text()
+
+
+def test_publish_locked_packaged(
+    temp_appdirs_pyproject, cli_runner, appdirs_env_lock_path, mocker, tmp_path
+):
+    mocker.patch("senv.package.publish_conda")
+    build_path = PyProject.get().senv.package.conda_build_path
+
+    with cd(temp_appdirs_pyproject.parent):
+        result = cli_runner.invoke(
+            app,
+            [
+                "package",
+                "-f",
+                str(temp_appdirs_pyproject),
+                "publish-locked",
+                "--repository-url",
+                "no-url",
+                "--username",
+                "test",
+                "--password",
+                "test",
+                "-l",
+                str(appdirs_env_lock_path),
+            ],
+            catch_exceptions=False,
+        )
+
+        assert result.exit_code == 0
+        tar_file = build_path / "noarch" / "appdirs__locked-1.1.4-0.tar.bz2"
+        extract_path = temp_appdirs_pyproject.parent / "extract"
+        extract_path.mkdir()
+
+        assert build_path
+        assert tar_file.exists()
+        with tarfile.open(str(tar_file)) as t:
+            t.extractall(str(extract_path))
+
+        assert (extract_path / LOCKED_PACKAGE_LOCK_NAME).exists()
+        assert (
+            extract_path / LOCKED_PACKAGE_LOCK_NAME
+        ).read_text() == appdirs_env_lock_path.read_text()
 
 
 def test_lock_throws_if_not_all_platform_exists(
