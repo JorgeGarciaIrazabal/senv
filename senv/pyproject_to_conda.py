@@ -242,7 +242,7 @@ def pyproject_to_env_app_yaml(
 
 def create_env_yaml(
     *,
-    dependencies: Dict[str, Any],
+    dependencies: List[str],
     output: Path,
     name: Optional[str] = None,
     channels: Optional[List[str]] = None,

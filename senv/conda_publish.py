@@ -136,15 +136,15 @@ def generate_app_lock_file_based_on_tested_lock_path(
             for platform in platforms_set:
                 tar_urls = combined_lock.platform_tar_links[platform]
                 # add the current package
-                dependencies = {
-                    c.package_name: f"=={c.version}",
-                }
+                dependencies = [
+                    f"{c.package_name}={c.version}",
+                ]
                 # pin version for all direct dependencies
                 for line in tar_urls:
                     channel, dep = line.rsplit("/", 1)
                     name, version, _ = dep.rsplit("-", 2)
                     if name.lower() in direct_dependencies_name:
-                        dependencies[name] = f"=={version}"
+                        dependencies.append(f"{name}={version}")
                 yaml_path = create_env_yaml(
                     channels=conda_channels,
                     output=Path(tmp_dir) / platform / "env.yaml",
